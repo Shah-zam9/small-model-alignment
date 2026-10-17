@@ -1,0 +1,68 @@
+{
+  "sft_ultrachat": {
+    "train": {
+      "total_raw": 207865,
+      "after_non_empty_single_turn": 207843,
+      "fits_in_512_with_eos": 120398,
+      "exceeds_512_in_raw_pool": 87445,
+      "raw_pool_pct_truncated_at_512": 42.07,
+      "selected_count": 30000,
+      "selected_pct_truncated_at_512": 0.0
+    },
+    "val": {
+      "total_raw": 23110,
+      "after_non_empty_single_turn": 23108,
+      "fits_in_512_with_eos": 13424,
+      "exceeds_512_in_raw_pool": 9684,
+      "raw_pool_pct_truncated_at_512": 41.91,
+      "selected_count": 1000,
+      "selected_pct_truncated_at_512": 0.0
+    }
+  },
+  "dpo_hh_rlhf": {
+    "train": {
+      "total_raw": 160800,
+      "after_single_turn_and_non_empty": 49241,
+      "dropped_prompt_gt_256": 203,
+      "after_prompt_le_256": 49038,
+      "selected_count": 15000,
+      "selected_pct_chosen_truncated_at_512": 0.19,
+      "selected_pct_rejected_truncated_at_512": 0.15,
+      "selected_pct_either_truncated_at_512": 0.3
+    },
+    "val": {
+      "total_raw": 8552,
+      "after_single_turn_and_non_empty": 2597,
+      "dropped_prompt_gt_256": 12,
+      "after_prompt_le_256": 2585,
+      "selected_count": 1000,
+      "selected_pct_chosen_truncated_at_512": 0.1,
+      "selected_pct_rejected_truncated_at_512": 0.2,
+      "selected_pct_either_truncated_at_512": 0.3
+    }
+  },
+  "dpo_ultrafeedback": {
+    "source_split": "train_prefs (disjoint train + val)",
+    "total_raw": 61135,
+    "after_single_turn_and_non_empty": 60630,
+    "dropped_equal_or_worse_score": 7286,
+    "after_score_filter": 53344,
+    "dropped_prompt_gt_256": 9883,
+    "after_prompt_le_256": 43461,
+    "dropped_either_exceeds_512_with_eos": 13867,
+    "both_fit_in_512_with_eos_pool": 29594,
+    "selected_train_count": 15000,
+    "selected_val_count": 1000,
+    "selected_pct_chosen_truncated_at_512": 0.0,
+    "selected_pct_rejected_truncated_at_512": 0.0,
+    "selected_pct_either_truncated_at_512": 0.0
+  },
+  "persona_lora": {
+    "total_raw": 220,
+    "after_non_empty": 220,
+    "prompt_gt_256": 0,
+    "pct_chosen_truncated_at_512": 0.0,
+    "pct_rejected_truncated_at_512": 0.0,
+    "pct_either_truncated_at_512": 0.0
+  }
+}
