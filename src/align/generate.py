@@ -93,7 +93,12 @@ def generate_on_eval_set(
         "no_repeat_ngram_size": no_repeat_ngram_size,
         "use_chat_template": use_chat_template,
         "lora_adapter_path": lora_adapter_path,
-        "prompt_template": "chat_template" if use_chat_template else "### Instruction:\\n{instruction}\\n\\n### Response:\\n",
+        "prompt_template": (
+            "<|im_start|>system\\nYou are a helpful AI assistant named SmolLM, trained by Hugging Face<|im_end|>\\n"
+            "<|im_start|>user\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n"
+            if use_chat_template
+            else "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+        ),
     }
 
     results: list[dict[str, Any]] = []
