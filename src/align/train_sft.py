@@ -47,8 +47,9 @@ def evaluate_sft(
     model: torch.nn.Module,
     val_loader: DataLoader,
     use_amp: bool,
-) -> float:
-    """Compute mean token-level SFT loss across the validation dataloader."""
+) -> tuple[float, float]:
+    """Compute mean token-level SFT loss across the validation dataloader and return (val_loss, elapsed_sec)."""
+    t0 = time.time()
     model.eval()
     total_loss = 0.0
     num_batches = 0
@@ -58,13 +59,21 @@ def evaluate_sft(
         total_loss += float(loss.item())
         num_batches += 1
     model.train()
-    return total_loss / max(1, num_batches)
+    return total_loss / max(1, num_batches), time.time() - t0
 
 
-def save_checkpoint(model, tokenizer, save_dir: Path) -> None:
+def get_dir_size_mb(path: Path) -> float:
+    if not path.exists():
+        return 0.0
+    total_bytes = sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+    return round(total_bytes / (1024 * 1024), 2)
+
+
+def save_checkpoint(model, tokenizer, save_dir: Path) -> float:
     save_dir.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(save_dir, safe_serialization=True)
     tokenizer.save_pretrained(save_dir)
+    return get_dir_size_mb(save_dir)
 
 
 def train_sft(config: dict[str, Any]) -> dict[str, Any]:
@@ -142,6 +151,9 @@ def train_sft(config: dict[str, Any]) -> dict[str, Any]:
     start_time = time.time()
     best_val_loss = float("inf")
     global_step = 0
+    skipped_steps = 0
+    all_losses_finite = True
+    val_pass_times: list[float] = []
 
     def log_metric(record: dict[str, Any]) -> None:
         with open(metrics_path, "a", encoding="utf-8") as mf:
@@ -149,13 +161,20 @@ def train_sft(config: dict[str, Any]) -> dict[str, Any]:
         print("METRIC:", json.dumps(record))
 
     # Step 0 baseline validation
-    init_val_loss = evaluate_sft(model, val_loader, use_amp=use_amp)
+    init_val_loss, init_val_sec = evaluate_sft(model, val_loader, use_amp=use_amp)
+    val_pass_times.append(init_val_sec)
+    if not math.isfinite(init_val_loss):
+        all_losses_finite = False
     best_val_loss = init_val_loss
     log_metric(
         {
             "step": 0,
             "train_loss": None,
             "val_loss": round(init_val_loss, 6),
+            "val_pass_sec": round(init_val_sec, 3),
+            "scaler_scale": scaler.get_scale() if use_amp else 1.0,
+            "skipped_steps": skipped_steps,
+            "all_losses_finite": all_losses_finite,
             "lr": lr,
             "elapsed_sec": round(time.time() - start_time, 2),
         }
@@ -174,26 +193,39 @@ def train_sft(config: dict[str, Any]) -> dict[str, Any]:
                 loss = compute_sft_loss_from_batch(model, batch)
                 scaled_loss = loss / grad_accum_steps
 
+            loss_val = float(loss.item())
+            if not math.isfinite(loss_val):
+                all_losses_finite = False
+
             scaler.scale(scaled_loss).backward()
-            running_loss += float(loss.item())
+            running_loss += loss_val
             micro_steps += 1
 
             is_last_batch = (batch_idx + 1) == len(train_loader)
             if micro_steps == grad_accum_steps or is_last_batch:
+                scale_before = scaler.get_scale() if use_amp else 1.0
                 scaler.unscale_(optimizer)
-                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+                grad_norm = float(torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm).item())
                 scaler.step(optimizer)
                 scaler.update()
+                scale_after = scaler.get_scale() if use_amp else 1.0
+
+                step_was_skipped = (use_amp and scale_after < scale_before) or (not math.isfinite(grad_norm))
+                if step_was_skipped:
+                    skipped_steps += 1
+                else:
+                    scheduler.step()
+
                 optimizer.zero_grad(set_to_none=True)
-                scheduler.step()
 
                 global_step += 1
                 step_dt = time.time() - step_start_time
                 step_times.append(step_dt)
                 avg_train_loss = running_loss / max(1, micro_steps)
+                if not math.isfinite(avg_train_loss):
+                    all_losses_finite = False
                 running_loss = 0.0
                 micro_steps = 0
-                step_start_time = time.time()
 
                 peak_mem_gb = (
                     torch.cuda.max_memory_allocated(device) / (1024**3)
@@ -206,8 +238,12 @@ def train_sft(config: dict[str, Any]) -> dict[str, Any]:
                     or (global_step == total_opt_steps)
                 )
                 val_loss = None
+                val_sec = None
                 if should_eval:
-                    val_loss = evaluate_sft(model, val_loader, use_amp=use_amp)
+                    val_loss, val_sec = evaluate_sft(model, val_loader, use_amp=use_amp)
+                    val_pass_times.append(val_sec)
+                    if not math.isfinite(val_loss):
+                        all_losses_finite = False
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
                         save_checkpoint(model, tokenizer, output_dir / "best")
@@ -219,7 +255,11 @@ def train_sft(config: dict[str, Any]) -> dict[str, Any]:
                         "train_loss": round(avg_train_loss, 6),
                         "val_loss": round(val_loss, 6) if val_loss is not None else None,
                         "best_val_loss": round(best_val_loss, 6),
-                        "grad_norm": round(float(grad_norm), 4),
+                        "val_pass_sec": round(val_sec, 3) if val_sec is not None else None,
+                        "grad_norm": round(grad_norm, 4) if math.isfinite(grad_norm) else "inf/nan",
+                        "scaler_scale": scale_after,
+                        "skipped_steps": skipped_steps,
+                        "all_losses_finite": all_losses_finite,
                         "lr": scheduler.get_last_lr()[0],
                         "sec_per_step": round(step_dt, 3),
                         "peak_gpu_mem_gb": round(peak_mem_gb, 3),
@@ -227,29 +267,55 @@ def train_sft(config: dict[str, Any]) -> dict[str, Any]:
                     }
                 )
 
+                # Reset step timer AFTER validation/checkpointing so step_dt measures pure train step time
+                step_start_time = time.time()
+
                 if global_step >= total_opt_steps:
                     break
         if global_step >= total_opt_steps:
             break
 
-    save_checkpoint(model, tokenizer, output_dir / "final")
+    final_ckpt_mb = save_checkpoint(model, tokenizer, output_dir / "final")
     if not (output_dir / "best").exists():
-        save_checkpoint(model, tokenizer, output_dir / "best")
+        best_ckpt_mb = save_checkpoint(model, tokenizer, output_dir / "best")
+    else:
+        best_ckpt_mb = get_dir_size_mb(output_dir / "best")
 
-    mean_sec_per_step = sum(step_times) / max(1, len(step_times))
+    steady_times = step_times[2:] if len(step_times) > 2 else step_times
+    sec_per_step_steady = sum(steady_times) / max(1, len(steady_times))
+    sec_per_step_all = sum(step_times) / max(1, len(step_times))
+    mean_val_pass_sec = sum(val_pass_times) / max(1, len(val_pass_times))
+
+    # Full run has 938 optimizer steps (ceil(30000 / 32)) and 11 validation passes on 1,000 examples
+    # (steps 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 938)
+    val_scale_to_1000 = 1000.0 / float(max(1, len(val_records)))
+    projected_1000_val_pass_sec = mean_val_pass_sec * val_scale_to_1000
+    full_train_sec = 938.0 * sec_per_step_steady
+    full_eval_sec = 11.0 * projected_1000_val_pass_sec
+    projected_full_run_hours = (full_train_sec + full_eval_sec) / 3600.0
+
     peak_mem_gb = (
         torch.cuda.max_memory_allocated(device) / (1024**3)
         if device.type == "cuda"
         else 0.0
     )
-    projected_full_937_hours = (mean_sec_per_step * 937.5) / 3600.0
 
     summary = {
         "total_steps_run": global_step,
+        "train_examples_used": len(train_records),
+        "val_examples_used": len(val_records),
         "best_val_loss": round(best_val_loss, 6),
-        "mean_sec_per_step": round(mean_sec_per_step, 3),
+        "all_losses_finite": all_losses_finite,
+        "skipped_steps": skipped_steps,
+        "final_scaler_scale": scaler.get_scale() if use_amp else 1.0,
+        "sec_per_step_excluding_first_2": round(sec_per_step_steady, 3),
+        "sec_per_step_all": round(sec_per_step_all, 3),
+        "val_pass_sec_for_n_val": round(mean_val_pass_sec, 3),
+        "projected_1000_val_pass_sec": round(projected_1000_val_pass_sec, 3),
+        "projected_full_run_hours_with_evals": round(projected_full_run_hours, 3),
         "peak_gpu_mem_gb": round(peak_mem_gb, 3),
-        "projected_937_steps_hours": round(projected_full_937_hours, 3),
+        "best_checkpoint_size_mb": best_ckpt_mb,
+        "final_checkpoint_size_mb": final_ckpt_mb,
         "elapsed_sec": round(time.time() - start_time, 2),
     }
     with open(output_dir / "summary.json", "w", encoding="utf-8") as f:
