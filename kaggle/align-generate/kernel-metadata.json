@@ -11,7 +11,7 @@
   "kernel_sources": [
     "shahzaibali21/align-sft",
     "shahzaibali21/align-dpo-hh",
-    "shahzaibali21/align-dpo-uf"
+    "shahzaibali21/align-lora-persona"
   ],
   "competition_sources": [],
   "model_sources": []

@@ -1,0 +1,31 @@
+model_name_or_path: HuggingFaceTB/SmolLM2-360M-Instruct
+data_path: data/persona_lora/ramsay_style_preferences.json
+output_dir: /kaggle/working/outputs/lora_persona_1ep
+seed: 42
+val_size: 20
+beta: 0.1
+learning_rate: 5.0e-5
+epochs: 1
+per_device_batch_size: 2
+gradient_accumulation_steps: 4
+cuda_visible_devices: "0"
+effective_batch_size: 8
+max_length: 512
+max_prompt_length: 256
+warmup_ratio: 0.1
+weight_decay: 0.01
+eval_steps: 5
+logging_steps: 5
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.05
+target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+chat_template: "<|im_start|>system\nYou are a helpful AI assistant named SmolLM, trained by Hugging Face<|im_end|>\n<|im_start|>user\n{instruction}<|im_end|>\n<|im_start|>assistant\n"
+default_system_prompt: "You are a helpful AI assistant named SmolLM, trained by Hugging Face"
