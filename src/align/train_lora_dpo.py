@@ -5,10 +5,15 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import os
 from pathlib import Path
 import random
 import time
 from typing import Any
+
+# Restrict single-process TRL DPOTrainer to 1 GPU on multi-GPU nodes (e.g. Kaggle 2xT4)
+if "LOCAL_RANK" not in os.environ:
+    os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 
 from datasets import Dataset
 import torch
