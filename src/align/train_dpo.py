@@ -252,6 +252,59 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
             mf.write(json.dumps(record) + "\n")
         print("METRIC:", json.dumps(record))
 
+    # Pre-training memory probe on the LONGEST train pair(s)
+    grad_ckpt_enabled = bool(config.get("gradient_checkpointing", False))
+    probe_info: dict[str, Any] = {}
+    if len(train_records) > 0:
+        top_candidates = sorted(
+            train_records,
+            key=lambda r: len(r["prompt"]) + max(len(r["chosen"]), len(r["rejected"])),
+            reverse=True,
+        )[: max(25, per_device_batch_size)]
+        scored_candidates: list[tuple[tuple[int, int], dict[str, Any]]] = []
+        for cand in top_candidates:
+            b_cand = collate_fn([cand])
+            c_len = int(b_cand["chosen"]["input_ids"].shape[1])
+            r_len = int(b_cand["rejected"]["input_ids"].shape[1])
+            scored_candidates.append(((max(c_len, r_len), c_len + r_len), cand))
+        scored_candidates.sort(key=lambda x: x[0], reverse=True)
+        longest_rows = [x[1] for x in scored_candidates[:per_device_batch_size]]
+        probe_batch = collate_fn(longest_rows)
+        probe_c_len = int(probe_batch["chosen"]["input_ids"].shape[1])
+        probe_r_len = int(probe_batch["rejected"]["input_ids"].shape[1])
+
+        policy_model.train()
+        optimizer.zero_grad(set_to_none=True)
+        with torch.no_grad(), torch.amp.autocast(amp_device_type, dtype=torch.float16, enabled=use_amp):
+            p_ref_c = compute_response_logprobs_from_batch(reference_model, probe_batch["chosen"])
+            p_ref_r = compute_response_logprobs_from_batch(reference_model, probe_batch["rejected"])
+        with torch.amp.autocast(amp_device_type, dtype=torch.float16, enabled=use_amp):
+            p_pi_c = compute_response_logprobs_from_batch(policy_model, probe_batch["chosen"])
+            p_pi_r = compute_response_logprobs_from_batch(policy_model, probe_batch["rejected"])
+            p_loss = compute_dpo_loss_from_logps(p_pi_c, p_pi_r, p_ref_c, p_ref_r, beta=beta)
+            p_scaled = p_loss / grad_accum_steps
+        scaler.scale(p_scaled).backward()
+        optimizer.zero_grad(set_to_none=True)
+        del p_ref_c, p_ref_r, p_pi_c, p_pi_r, p_loss, p_scaled, probe_batch
+        if has_cuda:
+            torch.cuda.empty_cache()
+        probe_m0, probe_m1 = get_gpu_mem()
+        if has_cuda and probe_m0 > 14.0 and not grad_ckpt_enabled:
+            policy_model.gradient_checkpointing_enable()
+            grad_ckpt_enabled = True
+            print(
+                f"[LONGEST PAIR PROBE] Peak GPU0 memory {probe_m0:.3f} GB > 14.0 GB -> "
+                "enabled gradient_checkpointing on policy_model!"
+            )
+        probe_info = {
+            "chosen_seq_len": probe_c_len,
+            "rejected_seq_len": probe_r_len,
+            "probe_peak_gpu0_mem_gb": probe_m0,
+            "probe_peak_gpu1_mem_gb": probe_m1,
+            "gradient_checkpointing_enabled": grad_ckpt_enabled,
+        }
+        print("LONGEST PAIR PROBE:", json.dumps(probe_info))
+
     # Step 0 baseline validation
     eval0 = evaluate_dpo(
         policy_model,
@@ -284,6 +337,7 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
             "skipped_steps": skipped_steps,
             "peak_gpu0_mem_gb": m0,
             "peak_gpu1_mem_gb": m1,
+            "longest_pair_probe": probe_info,
             "lr": lr,
             "elapsed_sec": round(time.time() - start_time, 2),
         }
@@ -460,6 +514,7 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
         "projected_full_run_hours_with_evals": round(projected_full_run_hours, 3),
         "peak_gpu0_mem_gb": m0,
         "peak_gpu1_mem_gb": m1,
+        "longest_pair_probe": probe_info,
         "best_checkpoint_size_mb": best_ckpt_mb,
         "final_checkpoint_size_mb": final_ckpt_mb,
         "elapsed_sec": round(time.time() - start_time, 2),
