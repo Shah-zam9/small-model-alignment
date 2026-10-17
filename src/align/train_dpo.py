@@ -44,20 +44,26 @@ def save_checkpoint(model, tokenizer, save_dir: Path) -> float:
 
 
 def resolve_model_path(path_str: str) -> str:
-    """Resolve local or Kaggle kernel_sources mount paths automatically."""
+    """Resolve local path or search /kaggle/input for matching checkpoint config.json."""
     p = Path(path_str)
     if p.exists():
-        return str(p)
+        resolved = str(p.resolve())
+        print(f"Resolved model path '{path_str}' -> {resolved}")
+        return resolved
     kaggle_in = Path("/kaggle/input")
-    if kaggle_in.exists() and path_str.startswith("/kaggle/input/"):
-        parts = p.parts  # ('/', 'kaggle', 'input', '<slug>', ...)
-        if len(parts) > 4:
-            rel_suffix = Path(*parts[4:])
-            matches = list(kaggle_in.rglob(str(rel_suffix / "config.json")))
+    if kaggle_in.exists():
+        candidates: list[str] = []
+        if len(p.parts) >= 2:
+            candidates.append(str(Path(*p.parts[-2:]) / "config.json"))
+        candidates.append(f"{p.name}/config.json")
+        candidates.append("best/config.json")
+        for pattern in candidates:
+            matches = sorted(kaggle_in.rglob(pattern))
             if matches:
                 resolved = str(matches[0].parent)
-                print(f"Resolved Kaggle model path {path_str} -> {resolved}")
+                print(f"Resolved model path '{path_str}' via /kaggle/input search -> {resolved}")
                 return resolved
+    print(f"Using model path / HF hub ID as-is: {path_str}")
     return path_str
 
 

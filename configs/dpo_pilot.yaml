@@ -1,6 +1,6 @@
 track: hh_rlhf
-policy_model_path: /kaggle/input/align-sft/outputs/sft/best
-reference_model_path: /kaggle/input/align-sft/outputs/sft/best
+policy_model_path: outputs/sft/best
+reference_model_path: outputs/sft/best
 reference_dtype: fp16
 manifest_path: data/manifests/dpo_hh_manifest.json
 output_dir: /kaggle/working/outputs/dpo_pilot
