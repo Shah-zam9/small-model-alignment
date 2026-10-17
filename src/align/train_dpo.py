@@ -256,6 +256,10 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
     grad_ckpt_enabled = bool(config.get("gradient_checkpointing", False))
     probe_info: dict[str, Any] = {}
     if len(train_records) > 0:
+        num_trainable_params = sum(p.numel() for p in policy_model.parameters() if p.requires_grad)
+        adam_state_gb = (2.0 * num_trainable_params * 4.0) / 1e9
+        probe_threshold_gb = 13.5
+
         top_candidates = sorted(
             train_records,
             key=lambda r: len(r["prompt"]) + max(len(r["chosen"]), len(r["rejected"])),
@@ -285,23 +289,36 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
             p_scaled = p_loss / grad_accum_steps
         scaler.scale(p_scaled).backward()
         optimizer.zero_grad(set_to_none=True)
+        probe_raw_m0, probe_m1 = get_gpu_mem()
         del p_ref_c, p_ref_r, p_pi_c, p_pi_r, p_loss, p_scaled, probe_batch
         if has_cuda:
             torch.cuda.empty_cache()
-        probe_m0, probe_m1 = get_gpu_mem()
-        if has_cuda and probe_m0 > 14.0 and not grad_ckpt_enabled:
+
+        probe_adam_adjusted_m0 = round(probe_raw_m0 + adam_state_gb, 3)
+        if has_cuda and probe_adam_adjusted_m0 > probe_threshold_gb and not grad_ckpt_enabled:
             policy_model.gradient_checkpointing_enable()
             grad_ckpt_enabled = True
-            print(
-                f"[LONGEST PAIR PROBE] Peak GPU0 memory {probe_m0:.3f} GB > 14.0 GB -> "
-                "enabled gradient_checkpointing on policy_model!"
+            decision = (
+                f"enable_gradient_checkpointing (adam_adjusted={probe_adam_adjusted_m0:.3f} GB "
+                f"> {probe_threshold_gb:.1f} GB)"
+            )
+            print(f"[LONGEST PAIR PROBE] {decision}")
+        else:
+            decision = (
+                f"keep_gradient_checkpointing={grad_ckpt_enabled} "
+                f"(adam_adjusted={probe_adam_adjusted_m0:.3f} GB <= {probe_threshold_gb:.1f} GB)"
             )
         probe_info = {
             "chosen_seq_len": probe_c_len,
             "rejected_seq_len": probe_r_len,
-            "probe_peak_gpu0_mem_gb": probe_m0,
+            "num_trainable_params": num_trainable_params,
+            "probe_raw_gpu0_mem_gb": probe_raw_m0,
+            "adam_state_gb": round(adam_state_gb, 3),
+            "probe_adam_adjusted_gpu0_mem_gb": probe_adam_adjusted_m0,
+            "threshold_gb": probe_threshold_gb,
             "probe_peak_gpu1_mem_gb": probe_m1,
             "gradient_checkpointing_enabled": grad_ckpt_enabled,
+            "decision": decision,
         }
         print("LONGEST PAIR PROBE:", json.dumps(probe_info))
 

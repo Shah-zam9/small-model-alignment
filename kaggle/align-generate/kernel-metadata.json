@@ -1,0 +1,18 @@
+{
+  "id": "shahzaibali21/align-generate",
+  "title": "align-generate",
+  "code_file": "notebook.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["shahzaibali21/align-code"],
+  "kernel_sources": [
+    "shahzaibali21/align-sft",
+    "shahzaibali21/align-dpo-hh",
+    "shahzaibali21/align-dpo-uf"
+  ],
+  "competition_sources": [],
+  "model_sources": []
+}
