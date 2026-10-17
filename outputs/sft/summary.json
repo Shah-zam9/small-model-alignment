@@ -1,0 +1,18 @@
+{
+  "total_steps_run": 938,
+  "train_examples_used": 30000,
+  "val_examples_used": 1000,
+  "best_val_loss": 1.307075,
+  "all_losses_finite": true,
+  "skipped_steps": 0,
+  "final_scaler_scale": 65536.0,
+  "sec_per_step_excluding_first_2": 4.521,
+  "sec_per_step_all": 4.521,
+  "val_pass_sec_for_n_val": 47.331,
+  "projected_1000_val_pass_sec": 47.331,
+  "projected_full_run_hours_with_evals": 1.322,
+  "peak_gpu_mem_gb": 12.449,
+  "best_checkpoint_size_mb": 1899.76,
+  "final_checkpoint_size_mb": 1899.76,
+  "elapsed_sec": 4783.07
+}

@@ -43,6 +43,24 @@ def save_checkpoint(model, tokenizer, save_dir: Path) -> float:
     return get_dir_size_mb(save_dir)
 
 
+def resolve_model_path(path_str: str) -> str:
+    """Resolve local or Kaggle kernel_sources mount paths automatically."""
+    p = Path(path_str)
+    if p.exists():
+        return str(p)
+    kaggle_in = Path("/kaggle/input")
+    if kaggle_in.exists() and path_str.startswith("/kaggle/input/"):
+        parts = p.parts  # ('/', 'kaggle', 'input', '<slug>', ...)
+        if len(parts) > 4:
+            rel_suffix = Path(*parts[4:])
+            matches = list(kaggle_in.rglob(str(rel_suffix / "config.json")))
+            if matches:
+                resolved = str(matches[0].parent)
+                print(f"Resolved Kaggle model path {path_str} -> {resolved}")
+                return resolved
+    return path_str
+
+
 @torch.no_grad()
 def evaluate_dpo(
     policy_model: torch.nn.Module,
@@ -50,6 +68,7 @@ def evaluate_dpo(
     val_loader: DataLoader,
     beta: float,
     use_amp: bool,
+    amp_device_type: str = "cuda",
 ) -> dict[str, Any]:
     """Evaluate DPO loss, reward accuracy, reward margin, and reference logprob finiteness on val_loader."""
     t0 = time.time()
@@ -65,12 +84,11 @@ def evaluate_dpo(
 
     for dpo_batch in val_loader:
         bsz = dpo_batch["chosen"]["input_ids"].shape[0]
-        with torch.amp.autocast("cuda", dtype=torch.float16, enabled=use_amp):
+        with torch.amp.autocast(amp_device_type, dtype=torch.float16, enabled=use_amp):
             pi_c = compute_response_logprobs_from_batch(policy_model, dpo_batch["chosen"])
             pi_r = compute_response_logprobs_from_batch(policy_model, dpo_batch["rejected"])
-
-        ref_c = compute_response_logprobs_from_batch(reference_model, dpo_batch["chosen"])
-        ref_r = compute_response_logprobs_from_batch(reference_model, dpo_batch["rejected"])
+            ref_c = compute_response_logprobs_from_batch(reference_model, dpo_batch["chosen"])
+            ref_r = compute_response_logprobs_from_batch(reference_model, dpo_batch["rejected"])
 
         if not (torch.isfinite(ref_c).all() and torch.isfinite(ref_r).all()):
             ref_logps_finite = False
@@ -102,13 +120,15 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
     seed = int(config.get("seed", 42))
     set_seed(seed)
 
-    policy_model_path = config["policy_model_path"]
-    reference_model_path = config.get("reference_model_path", policy_model_path)
+    policy_model_path = resolve_model_path(config["policy_model_path"])
+    reference_model_path = resolve_model_path(config.get("reference_model_path", policy_model_path))
     track = config.get("track", "hh_rlhf")
     manifest_path = config["manifest_path"]
     output_dir = Path(config.get("output_dir", f"outputs/dpo_{track}"))
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = output_dir / "metrics.jsonl"
+    if metrics_path.exists():
+        metrics_path.unlink()
 
     beta = float(config.get("beta", 0.1))
     max_length = int(config.get("max_length", 512))
@@ -123,8 +143,11 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
     max_steps = config.get("max_steps", None)
     train_limit = config.get("train_limit", None)
     val_limit = config.get("val_limit", None)
+    save_ckpts = bool(config.get("save_checkpoints", True))
+    force_cpu = bool(config.get("force_cpu", False))
 
-    has_cuda = torch.cuda.is_available()
+    has_cuda = torch.cuda.is_available() and not force_cpu
+    amp_device_type = "cuda" if has_cuda else "cpu"
     num_gpus = torch.cuda.device_count() if has_cuda else 0
     policy_device = torch.device("cuda:0" if has_cuda else "cpu")
     ref_device = torch.device("cuda:1" if num_gpus > 1 else policy_device)
@@ -132,6 +155,8 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
 
     print(f"Loading tokenizer from {policy_model_path}")
     tokenizer = AutoTokenizer.from_pretrained(policy_model_path)
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
 
     print(f"Loading trainable policy model in fp32 on {policy_device}: {policy_model_path}")
     policy_model = AutoModelForCausalLM.from_pretrained(
@@ -140,7 +165,12 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
     if config.get("gradient_checkpointing", False):
         policy_model.gradient_checkpointing_enable()
 
-    ref_dtype = torch.float16 if has_cuda else torch.float32
+    ref_dtype_cfg = str(config.get("reference_dtype", "fp16")).lower()
+    ref_dtype = (
+        torch.float16
+        if (has_cuda and ref_dtype_cfg == "fp16")
+        else torch.float32
+    )
     print(f"Loading frozen reference model in {ref_dtype} on {ref_device}: {reference_model_path}")
     reference_model = AutoModelForCausalLM.from_pretrained(
         reference_model_path, torch_dtype=ref_dtype
@@ -217,13 +247,20 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
         print("METRIC:", json.dumps(record))
 
     # Step 0 baseline validation
-    eval0 = evaluate_dpo(policy_model, reference_model, val_loader, beta=beta, use_amp=use_amp)
+    eval0 = evaluate_dpo(
+        policy_model,
+        reference_model,
+        val_loader,
+        beta=beta,
+        use_amp=use_amp,
+        amp_device_type=amp_device_type,
+    )
+    last_eval = eval0
     val_pass_times.append(eval0["val_pass_sec"])
     if not eval0["ref_logps_finite"]:
         ref_logps_all_finite = False
     if not math.isfinite(eval0["val_loss"]):
         all_losses_finite = False
-    best_val_acc = eval0["val_reward_accuracy"]
     m0, m1 = get_gpu_mem()
     log_metric(
         {
@@ -257,13 +294,13 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
 
     for epoch in range(epochs):
         for batch_idx, dpo_batch in enumerate(train_loader):
-            with torch.no_grad():
+            with torch.no_grad(), torch.amp.autocast(amp_device_type, dtype=torch.float16, enabled=use_amp):
                 ref_c = compute_response_logprobs_from_batch(reference_model, dpo_batch["chosen"])
                 ref_r = compute_response_logprobs_from_batch(reference_model, dpo_batch["rejected"])
                 if not (torch.isfinite(ref_c).all() and torch.isfinite(ref_r).all()):
                     ref_logps_all_finite = False
 
-            with torch.amp.autocast("cuda", dtype=torch.float16, enabled=use_amp):
+            with torch.amp.autocast(amp_device_type, dtype=torch.float16, enabled=use_amp):
                 pi_c = compute_response_logprobs_from_batch(policy_model, dpo_batch["chosen"])
                 pi_r = compute_response_logprobs_from_batch(policy_model, dpo_batch["rejected"])
                 loss = compute_dpo_loss_from_logps(pi_c, pi_r, ref_c, ref_r, beta=beta)
@@ -316,7 +353,15 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
                 )
                 eval_res = None
                 if should_eval:
-                    eval_res = evaluate_dpo(policy_model, reference_model, val_loader, beta=beta, use_amp=use_amp)
+                    eval_res = evaluate_dpo(
+                        policy_model,
+                        reference_model,
+                        val_loader,
+                        beta=beta,
+                        use_amp=use_amp,
+                        amp_device_type=amp_device_type,
+                    )
+                    last_eval = eval_res
                     val_pass_times.append(eval_res["val_pass_sec"])
                     if not eval_res["ref_logps_finite"]:
                         ref_logps_all_finite = False
@@ -324,7 +369,8 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
                         all_losses_finite = False
                     if eval_res["val_reward_accuracy"] > best_val_acc:
                         best_val_acc = eval_res["val_reward_accuracy"]
-                        save_checkpoint(policy_model, tokenizer, output_dir / "best")
+                        if save_ckpts:
+                            save_checkpoint(policy_model, tokenizer, output_dir / "best")
 
                 m0, m1 = get_gpu_mem()
                 log_metric(
@@ -339,7 +385,7 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
                         "val_reward_margin": round(eval_res["val_reward_margin"], 6) if eval_res else None,
                         "val_chosen_reward": round(eval_res["val_chosen_reward"], 6) if eval_res else None,
                         "val_rejected_reward": round(eval_res["val_rejected_reward"], 6) if eval_res else None,
-                        "best_val_reward_accuracy": round(best_val_acc, 6),
+                        "best_val_reward_accuracy": round(best_val_acc, 6) if best_val_acc >= 0 else None,
                         "val_pass_sec": round(eval_res["val_pass_sec"], 3) if eval_res else None,
                         "grad_norm": round(grad_norm, 4) if math.isfinite(grad_norm) else "inf/nan",
                         "scaler_scale": scale_after,
@@ -361,11 +407,15 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
         if global_step >= total_opt_steps:
             break
 
-    final_ckpt_mb = save_checkpoint(policy_model, tokenizer, output_dir / "final")
-    if not (output_dir / "best").exists():
-        best_ckpt_mb = save_checkpoint(policy_model, tokenizer, output_dir / "best")
+    if save_ckpts:
+        final_ckpt_mb = save_checkpoint(policy_model, tokenizer, output_dir / "final")
+        if not (output_dir / "best").exists():
+            best_ckpt_mb = save_checkpoint(policy_model, tokenizer, output_dir / "best")
+        else:
+            best_ckpt_mb = get_dir_size_mb(output_dir / "best")
     else:
-        best_ckpt_mb = get_dir_size_mb(output_dir / "best")
+        final_ckpt_mb = 0.0
+        best_ckpt_mb = 0.0
 
     steady_times = step_times[2:] if len(step_times) > 2 else step_times
     sec_per_step_steady = sum(steady_times) / max(1, len(steady_times))
@@ -388,6 +438,10 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
         "val_pairs_used": len(val_records),
         "step_0_val_loss": round(eval0["val_loss"], 6),
         "step_0_val_reward_accuracy": round(eval0["val_reward_accuracy"], 6),
+        "step_0_val_reward_margin": round(eval0["val_reward_margin"], 6),
+        "final_val_loss": round(last_eval["val_loss"], 6),
+        "final_val_reward_accuracy": round(last_eval["val_reward_accuracy"], 6),
+        "final_val_reward_margin": round(last_eval["val_reward_margin"], 6),
         "best_val_reward_accuracy": round(best_val_acc, 6),
         "ref_logps_all_finite": ref_logps_all_finite,
         "all_losses_finite": all_losses_finite,
@@ -413,10 +467,22 @@ def train_dpo(config: dict[str, Any]) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train DPO model with custom PyTorch loop.")
     parser.add_argument("--config", type=str, required=True, help="Path to YAML config.")
+    parser.add_argument("--policy_model_path", type=str, default=None, help="Override policy_model_path.")
+    parser.add_argument("--reference_model_path", type=str, default=None, help="Override reference_model_path.")
+    parser.add_argument("--output_dir", type=str, default=None, help="Override output_dir.")
+    parser.add_argument("--cpu", action="store_true", help="Force CPU execution.")
     args = parser.parse_args()
 
     with open(args.config, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
+    if args.policy_model_path:
+        config["policy_model_path"] = args.policy_model_path
+    if args.reference_model_path:
+        config["reference_model_path"] = args.reference_model_path
+    if args.output_dir:
+        config["output_dir"] = args.output_dir
+    if args.cpu:
+        config["force_cpu"] = True
     train_dpo(config)
 
 

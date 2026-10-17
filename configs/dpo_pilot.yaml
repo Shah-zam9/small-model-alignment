@@ -1,6 +1,7 @@
 track: hh_rlhf
-policy_model_path: Qwen/Qwen2.5-0.5B
-reference_model_path: Qwen/Qwen2.5-0.5B
+policy_model_path: /kaggle/input/align-sft/outputs/sft/best
+reference_model_path: /kaggle/input/align-sft/outputs/sft/best
+reference_dtype: fp16
 manifest_path: data/manifests/dpo_hh_manifest.json
 output_dir: /kaggle/working/outputs/dpo_pilot
 seed: 42
@@ -18,4 +19,5 @@ gradient_checkpointing: false
 train_limit: 640
 val_limit: 200
 max_steps: 20
-eval_every_steps: 10
+eval_every_steps: 20
+save_checkpoints: false

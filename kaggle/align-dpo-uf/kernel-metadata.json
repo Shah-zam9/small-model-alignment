@@ -1,0 +1,14 @@
+{
+  "id": "shahzaibali21/align-dpo-uf",
+  "title": "align-dpo-uf",
+  "code_file": "notebook.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": ["shahzaibali21/align-code"],
+  "kernel_sources": ["shahzaibali21/align-sft"],
+  "competition_sources": [],
+  "model_sources": []
+}

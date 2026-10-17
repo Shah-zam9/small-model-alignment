@@ -15,6 +15,25 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.align.prompt import format_prompt
 
 
+def resolve_model_path(path_str: str) -> str:
+    """Resolve local or Kaggle kernel_sources mount paths automatically."""
+    p = Path(path_str)
+    if p.exists():
+        return str(p)
+    kaggle_in = Path("/kaggle/input")
+    if kaggle_in.exists() and path_str.startswith("/kaggle/input/"):
+        parts = p.parts
+        if len(parts) > 4:
+            rel_suffix = Path(*parts[4:])
+            for marker in ("config.json", "adapter_config.json"):
+                matches = list(kaggle_in.rglob(str(rel_suffix / marker)))
+                if matches:
+                    resolved = str(matches[0].parent)
+                    print(f"Resolved Kaggle model path {path_str} -> {resolved}")
+                    return resolved
+    return path_str
+
+
 def generate_on_eval_set(
     model_name_or_path: str,
     eval_set_path: str | Path,
@@ -26,6 +45,7 @@ def generate_on_eval_set(
     repetition_penalty: float = 1.0,
     no_repeat_ngram_size: int = 0,
     use_chat_template: bool = False,
+    lora_adapter_path: str | None = None,
     device: str | None = None,
     limit: int | None = None,
     sanity_print_count: int = 3,
@@ -37,6 +57,10 @@ def generate_on_eval_set(
     """
     if device is None:
         device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+    model_name_or_path = resolve_model_path(model_name_or_path)
+    if lora_adapter_path:
+        lora_adapter_path = resolve_model_path(lora_adapter_path)
 
     with open(eval_set_path, "r", encoding="utf-8") as f:
         eval_items = json.load(f)
@@ -51,6 +75,9 @@ def generate_on_eval_set(
 
     dtype = torch.float16 if device.startswith("cuda") else torch.float32
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path, torch_dtype=dtype).to(device)
+    if lora_adapter_path:
+        from peft import PeftModel
+        model = PeftModel.from_pretrained(model, lora_adapter_path).to(device)
     model.eval()
 
     gen_settings = {
@@ -59,6 +86,7 @@ def generate_on_eval_set(
         "repetition_penalty": repetition_penalty,
         "no_repeat_ngram_size": no_repeat_ngram_size,
         "use_chat_template": use_chat_template,
+        "lora_adapter_path": lora_adapter_path,
         "prompt_template": "chat_template" if use_chat_template else "### Instruction:\\n{instruction}\\n\\n### Response:\\n",
     }
 
@@ -193,6 +221,7 @@ def main() -> None:
     parser.add_argument("--repetition_penalty", type=float, default=1.0)
     parser.add_argument("--no_repeat_ngram_size", type=int, default=0)
     parser.add_argument("--use_chat_template", action="store_true")
+    parser.add_argument("--lora_adapter_path", type=str, default=None)
     parser.add_argument("--limit", type=int, default=None)
     args = parser.parse_args()
 
@@ -207,6 +236,7 @@ def main() -> None:
         repetition_penalty=args.repetition_penalty,
         no_repeat_ngram_size=args.no_repeat_ngram_size,
         use_chat_template=args.use_chat_template,
+        lora_adapter_path=args.lora_adapter_path,
         limit=args.limit,
     )
 

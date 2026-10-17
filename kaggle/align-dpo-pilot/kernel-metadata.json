@@ -8,7 +8,7 @@
   "enable_gpu": true,
   "enable_internet": true,
   "dataset_sources": ["shahzaibali21/align-code"],
-  "kernel_sources": [],
+  "kernel_sources": ["shahzaibali21/align-sft"],
   "competition_sources": [],
   "model_sources": []
 }

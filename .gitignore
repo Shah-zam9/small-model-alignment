@@ -17,3 +17,5 @@ outputs/local/
 *.zip
 plan.md
 PA2.pdf
+kaggle_benchmarks_reference.md
+example_task.py
