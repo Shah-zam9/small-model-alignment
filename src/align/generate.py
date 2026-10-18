@@ -16,28 +16,74 @@ from src.align.prompt import format_prompt
 
 
 def resolve_model_path(path_str: str) -> str:
-    """Resolve local path or search /kaggle/input for matching checkpoint config.json."""
+    """Resolve model path.
+
+    Rules:
+    1. If path_str does not start with 'outputs/' or '/', it is treated as a Hugging Face hub ID
+       (or standard non-path model ID) and returned as-is without searching /kaggle/input.
+    2. If Path(path_str).exists(), return the resolved local path.
+    3. If searching /kaggle/input (for paths starting with 'outputs/' or '/'):
+       - Never use generic fallback patterns like 'best/config.json'.
+       - Search /kaggle/input strictly for matching relative suffixes of path_str.
+       - If exactly 1 match is found, return it.
+       - If 0 matches are found, raise FileNotFoundError.
+       - If >1 matches are found, raise ValueError (ambiguous).
+    """
     p = Path(path_str)
+    normalized = p.as_posix()
+
+    # Rule 1: Never search /kaggle/input for HF hub IDs
+    if not (normalized.startswith("outputs/") or normalized.startswith("/")):
+        print(f"Using HF hub ID as-is: {path_str}")
+        return path_str
+
+    # Rule 2: If path exists locally, return resolved path
     if p.exists():
         resolved = str(p.resolve())
         print(f"Resolved model path '{path_str}' -> {resolved}")
         return resolved
+
+    # Rule 3: Search /kaggle/input for mounted checkpoints
     kaggle_in = Path("/kaggle/input")
     if kaggle_in.exists():
+        parts = list(p.parts)
+        if "outputs" in parts:
+            idx = parts.index("outputs")
+            target_rel = Path(*parts[idx:])
+        elif len(parts) >= 2:
+            target_rel = Path(*parts[-2:])
+        else:
+            target_rel = p
+
+        matches: list[Path] = []
         for marker in ("config.json", "adapter_config.json"):
-            candidates: list[str] = []
-            if len(p.parts) >= 2:
-                candidates.append(str(Path(*p.parts[-2:]) / marker))
-            candidates.append(f"{p.name}/{marker}")
-            candidates.append(f"best/{marker}")
-            for pattern in candidates:
-                matches = sorted(kaggle_in.rglob(pattern))
-                if matches:
-                    resolved = str(matches[0].parent)
-                    print(f"Resolved model path '{path_str}' via /kaggle/input search -> {resolved}")
-                    return resolved
-    print(f"Using model path / HF hub ID as-is: {path_str}")
-    return path_str
+            search_suffix = (target_rel / marker).as_posix()
+            for cand in kaggle_in.rglob(marker):
+                if cand.as_posix().endswith(search_suffix):
+                    matches.append(cand.parent)
+
+        unique_matches: list[str] = []
+        seen = set()
+        for m in matches:
+            res_str = str(m.resolve())
+            if res_str not in seen:
+                seen.add(res_str)
+                unique_matches.append(res_str)
+
+        if len(unique_matches) == 1:
+            resolved = unique_matches[0]
+            print(f"Resolved model path '{path_str}' via /kaggle/input search -> {resolved}")
+            return resolved
+        elif len(unique_matches) > 1:
+            raise ValueError(
+                f"Ambiguous model path resolution for '{path_str}': multiple matches found in /kaggle/input: {unique_matches}"
+            )
+        else:
+            raise FileNotFoundError(
+                f"Could not resolve model path '{path_str}': no match found under /kaggle/input for target suffix '{target_rel}'"
+            )
+
+    raise FileNotFoundError(f"Model path '{path_str}' does not exist locally and /kaggle/input is not present.")
 
 
 def generate_on_eval_set(
@@ -93,6 +139,9 @@ def generate_on_eval_set(
         "no_repeat_ngram_size": no_repeat_ngram_size,
         "use_chat_template": use_chat_template,
         "lora_adapter_path": lora_adapter_path,
+        "environment": torch.cuda.get_device_name(0) if device.startswith("cuda") else "CPU",
+        "device": device,
+        "dtype": str(dtype).replace("torch.", ""),
         "prompt_template": (
             "<|im_start|>system\\nYou are a helpful AI assistant named SmolLM, trained by Hugging Face<|im_end|>\\n"
             "<|im_start|>user\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n"
