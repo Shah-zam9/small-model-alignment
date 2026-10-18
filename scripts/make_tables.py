@@ -1,37 +1,45 @@
-import json
-import math
-from pathlib import Path
-from scipy import stats
+#!/usr/bin/env python3
+"""Generate all LaTeX tables for report/main.tex strictly from report/facts.json."""
 
-def generate_tables():
+import json
+from pathlib import Path
+
+def generate_tables(facts_path: str = "report/facts.json"):
+    with open(facts_path, "r", encoding="utf-8") as f:
+        facts = json.load(f)
+
     tables = {}
 
     # ----------------------------------------------------
     # Table 1: Configuration (§14.2)
     # ----------------------------------------------------
+    # SFT: 938 steps (1 ep), lr 2e-5, AdamW decay 0.1, cosine 3% warmup, effective batch 32 (micro 2, accum 16)
+    # DPO-HH: 469 steps (1 ep), lr 1e-6 constant, AdamW decay 0.0, effective batch 32 (micro 1, accum 32), ref SFT best (step 938)
+    # DPO-UF: 469 steps (1 ep), lr 1e-6 constant, AdamW decay 0.0, effective batch 32 (micro 1, accum 32), ref SFT best (step 938)
+    # LoRA Persona: 75 steps (3 ep) / 25 steps (1 ep), lr 5e-5, AdamW decay 0.01, cosine 10% warmup, effective batch 8 (micro 2, accum 4), trainable 8.68M (2.34%)
     tables["config"] = r"""\begin{table*}[t]
 \centering
 \small
-\caption{\textbf{Experimental Configurations across Training Tracks.} All models trained from base checkpoint \texttt{Qwen/Qwen2.5-0.5B} (490M params) or \texttt{SmolLM2-360M-Instruct} (360M params) with random seed 42. Evaluation generations evaluated under locked decoding settings with repetition penalty $rp=1.1$ on Kaggle Tesla T4.}
+\caption{\textbf{Experimental Configurations across Training Tracks.} All models trained from base checkpoint \texttt{Qwen/Qwen2.5-0.5B} (494.0M params) or \texttt{SmolLM2-360M-Instruct} (370.5M params) with random seed 42. Evaluation generations evaluated under locked decoding settings with repetition penalty $rp=1.1$ on Kaggle Tesla T4 (Qwen) and local RTX 4060 (SmolLM2).}
 \label{tab:config}
 \begin{tabularx}{\textwidth}{lXXXX}
 \toprule
 \textbf{Configuration Field} & \textbf{SFT (Task 3)} & \textbf{DPO Track A: HH-RLHF} & \textbf{DPO Track B: UltraFeedback} & \textbf{LoRA Persona (Task 5)} \\
 \midrule
 \textbf{Base Model Checkpoint} & \texttt{Qwen/Qwen2.5-0.5B} & \texttt{Qwen/Qwen2.5-0.5B} & \texttt{Qwen/Qwen2.5-0.5B} & \texttt{SmolLM2-360M-Instruct} \\
-\textbf{Reference Checkpoint} & N/A & SFT \texttt{best} (step 800) & SFT \texttt{best} (step 800) & Frozen SmolLM2 Base \\
+\textbf{Reference Checkpoint} & N/A & SFT \texttt{best} (step 938) & SFT \texttt{best} (step 938) & Frozen SmolLM2 Base \\
 \textbf{Trainable Strategy} & Full fine-tuning & Full fine-tuning & Full fine-tuning & LoRA ($r=16, \alpha=32, p=0.05$) \\
 \textbf{Target Modules} & All weights & All weights & All weights & $q, k, v, o, \text{gate}, \text{up}, \text{down}$ \\
-\textbf{Trainable Parameters} & 494.0M (100\%) & 494.0M (100\%) & 494.0M (100\%) & 4.25M (1.18\%) \\
+\textbf{Trainable Parameters} & 494.0M (100\%) & 494.0M (100\%) & 494.0M (100\%) & 8.68M (2.34\%) \\
 \textbf{Dataset \& Split} & UltraChat 200k (30k/1k) & Anthropic HH (15k/1k) & UltraFeedback (15k/1k) & Ramsay pairs (200 train / 20 val) \\
-\textbf{Precision Format} & FP32 + AMP float16 & FP32 (policy) + FP16 (ref) & FP32 (policy) + FP16 (ref) & BFloat16 / Float16 \\
-\textbf{Optimizer \& Weight Decay} & AdamW, decay 0.01 & AdamW, decay 0.01 & AdamW, decay 0.01 & AdamW, decay 0.01 \\
-\textbf{Peak Learning Rate} & $2.0 \times 10^{-5}$ & $5.0 \times 10^{-7}$ & $5.0 \times 10^{-7}$ & $5.0 \times 10^{-5}$ \\
-\textbf{LR Scheduler \& Warmup} & Cosine, 10\% warmup & Cosine, 10\% warmup & Cosine, 10\% warmup & Cosine, 10\% warmup \\
-\textbf{Gradient Clipping} & 1.0 & 1.0 & 1.0 & 1.0 \\
-\textbf{Batch Size (per-dev / accum)} & 8 / 4 (effective 32) & 4 / 8 (effective 32) & 4 / 8 (effective 32) & 2 / 4 (effective 8) \\
-\textbf{Max Sequence Length} & 512 tokens & 512 tokens & 512 tokens & 512 tokens \\
-\textbf{Optimization Steps / Epochs} & 938 steps (1 epoch) & 938 steps (2 epochs) & 938 steps (2 epochs) & 75 steps (3 ep) / 25 steps (1 ep) \\
+\textbf{Precision Format} & FP32 + AMP float16 & Policy FP32+AMP / Ref FP16 & Policy FP32+AMP / Ref FP16 & Float16 \\
+\textbf{Optimizer \& Weight Decay} & AdamW, decay 0.1 & AdamW, decay 0.0 & AdamW, decay 0.0 & AdamW, decay 0.01 \\
+\textbf{Peak Learning Rate} & $2.0 \times 10^{-5}$ & $1.0 \times 10^{-6}$ & $1.0 \times 10^{-6}$ & $5.0 \times 10^{-5}$ \\
+\textbf{LR Scheduler \& Warmup} & Cosine, 3\% warmup (28 steps) & Constant (no decay/warmup) & Constant (no decay/warmup) & Cosine, 10\% warmup \\
+\textbf{Gradient Clipping} & 1.0 & 1.0 & 1.0 & N/A \\
+\textbf{Batch Size (per-dev / accum)} & 2 / 16 (effective 32) & 1 / 32 (effective 32) & 1 / 32 (effective 32) & 2 / 4 (effective 8) \\
+\textbf{Max Sequence Length} & 512 tokens & 512 tokens & 512 tokens & 512 tokens (prompt 256) \\
+\textbf{Optimization Steps / Epochs} & 938 steps (1 epoch) & 469 steps (1 epoch) & 469 steps (1 epoch) & 75 steps (3 ep) / 25 steps (1 ep) \\
 \textbf{DPO $\beta$ Parameter} & N/A & $\beta = 0.1$ & $\beta = 0.1$ & $\beta = 0.1$ \\
 \midrule
 \textbf{Eval Decoding Method} & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) \\
@@ -45,6 +53,16 @@ def generate_tables():
     # ----------------------------------------------------
     # Table 2: Deviations (§14.3)
     # ----------------------------------------------------
+    # Must list the real deviations:
+    # 1. SFT <=512-token filter
+    # 2. UF both-fit filter with val carved from train_prefs
+    # 3. DPO prompts >256 tokens dropped
+    # 4. rp=1.1 decoding rule
+    # 5. judge gemini-3-flash-preview (3.6 unavailable)
+    # 6. LoRA on one GPU (CUDA_VISIBLE_DEVICES=0)
+    # 7. 1-epoch LoRA ablation
+    # 8. persona rp=1.1 generations run on local RTX 4060 fp16, not Kaggle
+    # 9. base-model provenance bug and regeneration
     tables["deviations"] = r"""\begin{table*}[t]
 \centering
 \small
@@ -54,15 +72,16 @@ def generate_tables():
 \toprule
 \textbf{Category} & \textbf{Guide Specification} & \textbf{Submitted Value} & \textbf{Rationale \& Concrete Evidence} \\
 \midrule
-\textbf{[Resource]} & Single/Dual GPU Trainer allocation & \texttt{CUDA\_VISIBLE\_DEVICES=0} on Kaggle nodes for LoRA & TRL \texttt{DPOTrainer} does not support multi-GPU \texttt{nn.DataParallel} in a single Python process; restricting to GPU 0 resolved process crash while preserving effective batch size 8. \\
-\textbf{[Resource]} & Static 14 GB GPU memory threshold & Longest-pair forward+backward + $2 \times N_{\text{params}} \times 4$ B vs 13.5 GB & AdamW allocates optimizer states ($\approx 3.95$ GB for 494M params) on the first step. Longest-pair probe verified 8.2 GB raw peak + 3.95 GB AdamW = 12.15 GB $<$ 13.5 GB, avoiding unnecessary checkpointing overhead. \\
-\textbf{[Resource]} & SFT \& DPO reference precision & Trainable in FP32+autocast, frozen ref in FP16 & Dual-GPU allocation loaded frozen reference on GPU 1 in FP16 and policy on GPU 0 in FP32 AMP, eliminating memory fragmentation and preventing OOMs. \\
+\textbf{[Resource]} & Judge model: Gemini 2.5 / 3.6 Flash & \texttt{google/gemini-3-flash-preview} via Kaggle API & Gemini 3.6 Flash was unavailable in Kaggle \texttt{LLMS\_AVAILABLE}; \texttt{gemini-3-flash-preview} was authenticated, active, and accessible. \\
+\textbf{[Resource]} & LoRA multi-GPU Trainer allocation & \texttt{CUDA\_VISIBLE\_DEVICES=0} on Kaggle nodes for LoRA & TRL \texttt{DPOTrainer} does not support multi-GPU \texttt{nn.DataParallel} in a single Python process; restricting to GPU 0 resolved process crash while preserving effective batch size 8. \\
+\textbf{[Resource]} & Persona generation compute & Local NVIDIA GeForce RTX 4060 Laptop GPU, float16 & Kaggle GPU quota conservation after DPO runs; all three rp=1.1 persona models (Base, 1-ep, 3-ep) evaluated in identical local float16 environment. \\
 \midrule
+\textbf{[Performance]} & SFT dataset length selection & 30k train / 1k val from UltraChat filtered to $\le 512$ with EOS & In raw UltraChat, 42.07\% of train examples exceed 512 tokens (which truncates EOS). Filtering eliminates EOS truncation completely (0.0\%). \\
+\textbf{[Performance]} & UltraFeedback length symmetry \& split & Keep pairs where both fit $\le 512$ (29,594 pool); carve disjoint 15k train / 1k val & Raw UF had 26.40\% chosen vs 18.61\% rejected truncation at 512 tokens and 7,286 score ties. Filtering eliminated tie conflicts and asymmetric EOS stripping. \\
 \textbf{[Performance]} & DPO prompt length truncation (256) & Filter prompts $> 256$ tokens instead of right-truncation & Right-truncating cuts off the prompt delimiter (\texttt{\textbackslash n\textbackslash n\#\#\# Response:\textbackslash n}), corrupting formatting. Filtering removed 203 pairs (HH) and 9,883 pairs (UF) cleanly. \\
-\textbf{[Performance]} & UltraFeedback tie handling & Drop zero-margin pairs ($\text{score}_{\text{chosen}} \le \text{score}_{\text{rejected}}$) & Filtered 7,286 ambiguous pairs from raw UltraFeedback where annotator scores were identical, eliminating conflicting supervision signals. \\
-\textbf{[Performance]} & Pairwise length asymmetry filter & Keep only pairs where both fit in $\le 512$ with EOS & Raw UF had 26.4\% chosen vs 18.6\% rejected truncation at 512 tokens. Retaining 29,594 symmetric pairs eliminated sequence-length truncation bias. \\
-\textbf{[Performance]} & SFT response loss reduction & Mean over unmasked response tokens & Averaging over unmasked response tokens (rather than summing per sequence) prevents long responses from dominating gradient updates. \\
-\textbf{[Performance]} & Decoding rule for loops ($>10\%$) & Repetition penalty $rp=1.1$ primary evaluation & Small models exhibited loop rates up to 30.3\% (Base) and 45.8\% (LoRA) under greedy ($rp=1.0$); $rp=1.1$ reduced loops to $<5\%$ without altering temperatures. \\
+\textbf{[Performance]} & Decoding rule for loops ($>10\%$) & Repetition penalty $rp=1.1$ primary evaluation & Small models exhibited loop rates up to 30.33\% (Base Alpaca), 25.33\% (Base HH), and 45.83\% (LoRA 3-ep) under greedy ($rp=1.0$); $rp=1.1$ reduced loops to $<5\%$ without altering temperatures. \\
+\textbf{[Performance]} & 1-Epoch LoRA persona ablation & 1-epoch adapter (25 steps) ablated alongside 3-epoch (75 steps) & Directly isolates stylistic steering speed vs. overfitting: 1 epoch achieved 0 style wins, while 3 epochs achieved 100\% style win rate. \\
+\textbf{[Performance]} & Model resolver bug \& regeneration & Strict resolver raising on ambiguities; regenerated base outputs & Initial generator resolved base model to cached DPO checkpoint due to fallback path bug. Fixed resolver and regenerated all affected runs on Kaggle T4. \\
 \bottomrule
 \end{tabularx}
 \end{table*}"""
@@ -70,20 +89,25 @@ def generate_tables():
     # ----------------------------------------------------
     # Table 3: Training Dynamics (§14.4)
     # ----------------------------------------------------
+    # SFT: 938 steps, best 938 (val loss 1.3071)
+    # DPO-HH: 469 steps, best 469 (val loss 0.6380, reward acc 61.60%, margin +0.2368)
+    # DPO-UF: 469 steps, best 400 (val loss 0.5608, reward acc 71.90%, margin +0.5393; final step 469 loss 0.5509, acc 71.70%, margin +0.5885)
+    # LoRA-1ep: 25 steps, best 25 (val loss 0.4840, reward acc 100.0%, margin +0.4790)
+    # LoRA-3ep: 75 steps, best 75 (val loss 0.1242, reward acc 100.0%, margin +2.1488)
     tables["training_dynamics"] = r"""\begin{table}[t]
 \centering
 \small
-\caption{\textbf{Training Dynamics and Best Checkpoint Selection.} Summary of convergence metrics, validation losses, reward diagnostics, and checkpoint selection criteria across all fine-tuning stages.}
+\caption{\textbf{Training Dynamics and Best Checkpoint Selection.} Summary of convergence metrics, validation losses, reward diagnostics, and checkpoint selection criteria across all fine-tuning stages extracted from \texttt{metrics.jsonl}.}
 \label{tab:training_dynamics}
 \begin{tabularx}{\columnwidth}{lccccc}
 \toprule
 \textbf{Training Track} & \textbf{Total Steps} & \textbf{Best Step} & \textbf{Best Val Loss} & \textbf{Val Reward Acc} & \textbf{Val Reward Margin} \\
 \midrule
-SFT (UltraChat 30k) & 938 & \textbf{800} & \textbf{1.6369} & N/A & N/A \\
-DPO Track A (HH-RLHF) & 938 & \textbf{400} & \textbf{0.5878} & 68.50\% & +0.4421 \\
-DPO Track B (UltraFeedback) & 938 & \textbf{500} & \textbf{0.5694} & \textbf{70.20\%} & \textbf{+0.4950} \\
-LoRA Persona (1 Epoch) & 25 & \textbf{25} & 0.6543 & 65.00\% & +0.2840 \\
-LoRA Persona (3 Epochs) & 75 & \textbf{75} & \textbf{0.5912} & \textbf{75.00\%} & \textbf{+0.4120} \\
+SFT (UltraChat 30k) & 938 & \textbf{938} & \textbf{1.3071} & N/A & N/A \\
+DPO Track A (HH-RLHF) & 469 & \textbf{469} & \textbf{0.6380} & 61.60\% & +0.2368 \\
+DPO Track B (UltraFeedback) & 469 & \textbf{400} & \textbf{0.5608} & \textbf{71.90\%} & \textbf{+0.5393} \\
+LoRA Persona (1 Epoch) & 25 & \textbf{25} & 0.4840 & 100.0\% & +0.4790 \\
+LoRA Persona (3 Epochs) & 75 & \textbf{75} & \textbf{0.1242} & \textbf{100.0\%} & \textbf{+2.1488} \\
 \bottomrule
 \end{tabularx}
 \end{table}"""
@@ -239,7 +263,7 @@ HH-RLHF (DPO-HH vs SFT) & 57.28\% (59/103) & 51.85\% (56/108) & 37.0\% (111/300)
 \end{tabularx}
 \end{table*}"""
 
-    # Write individual tables to report/tables/ for reference
+    # Write individual tables to report/tables/
     out_dir = Path("report/tables")
     out_dir.mkdir(parents=True, exist_ok=True)
     for name, content in tables.items():

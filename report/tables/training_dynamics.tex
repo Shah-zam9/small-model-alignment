@@ -1,17 +1,17 @@
 \begin{table}[t]
 \centering
 \small
-\caption{\textbf{Training Dynamics and Best Checkpoint Selection.} Summary of convergence metrics, validation losses, reward diagnostics, and checkpoint selection criteria across all fine-tuning stages.}
+\caption{\textbf{Training Dynamics and Best Checkpoint Selection.} Summary of convergence metrics, validation losses, reward diagnostics, and checkpoint selection criteria across all fine-tuning stages extracted from \texttt{metrics.jsonl}.}
 \label{tab:training_dynamics}
 \begin{tabularx}{\columnwidth}{lccccc}
 \toprule
 \textbf{Training Track} & \textbf{Total Steps} & \textbf{Best Step} & \textbf{Best Val Loss} & \textbf{Val Reward Acc} & \textbf{Val Reward Margin} \\
 \midrule
-SFT (UltraChat 30k) & 938 & \textbf{800} & \textbf{1.6369} & N/A & N/A \\
-DPO Track A (HH-RLHF) & 938 & \textbf{400} & \textbf{0.5878} & 68.50\% & +0.4421 \\
-DPO Track B (UltraFeedback) & 938 & \textbf{500} & \textbf{0.5694} & \textbf{70.20\%} & \textbf{+0.4950} \\
-LoRA Persona (1 Epoch) & 25 & \textbf{25} & 0.6543 & 65.00\% & +0.2840 \\
-LoRA Persona (3 Epochs) & 75 & \textbf{75} & \textbf{0.5912} & \textbf{75.00\%} & \textbf{+0.4120} \\
+SFT (UltraChat 30k) & 938 & \textbf{938} & \textbf{1.3071} & N/A & N/A \\
+DPO Track A (HH-RLHF) & 469 & \textbf{469} & \textbf{0.6380} & 61.60\% & +0.2368 \\
+DPO Track B (UltraFeedback) & 469 & \textbf{400} & \textbf{0.5608} & \textbf{71.90\%} & \textbf{+0.5393} \\
+LoRA Persona (1 Epoch) & 25 & \textbf{25} & 0.4840 & 100.0\% & +0.4790 \\
+LoRA Persona (3 Epochs) & 75 & \textbf{75} & \textbf{0.1242} & \textbf{100.0\%} & \textbf{+2.1488} \\
 \bottomrule
 \end{tabularx}
 \end{table}
