@@ -126,8 +126,8 @@ Every table and figure in `report/main.tex` is linked directly to its generation
 | **Table 4: Quantitative Results** | `outputs/judgments/*.jsonl` | `scripts/make_tables.py` | Wins, losses, ties, win rates, Clopper-Pearson 95% CIs, and binomial $p$-values. |
 | **Table 5: Persona Dimensions** | `outputs/judgments/judge_persona_*.jsonl` | `scripts/make_tables.py` | Multi-dimensional breakdown: Style Faithfulness, Usefulness, and Safety. |
 | **Table 6: Length Split Analysis** | `outputs/judgments/judge_alpaca_sft_vs_dpo_uf_rp11.jsonl` | `scripts/make_tables.py` | DPO-UF win rate when longer vs shorter than SFT, excluding 512-token hits. |
-| **Table 7: Position Bias Check** | `outputs/judgments/judge_swap50_*.jsonl` | `scripts/make_tables.py` | Agreement, tie disagreements, direct flips, and overall position A preference. |
-| **Table 8: Safety Audit Table** | `reports/persona_safety.md` | `scripts/make_tables.py` | All 6 safety-sensitive prompts: Base vs 1-Ep LoRA vs 3-Ep LoRA (rp=1.1). |
+| **Table 7: Position Bias Diagnostics** | `outputs/judgments/*.jsonl`, swap50 | `scripts/make_tables.py` | Slot A vs B win rates across 300 pairs, plus 50-pair position-swap consistency (original vs swapped). |
+| **Table 8: Safety Audit Table** | `reports/persona_safety.md` | `scripts/make_tables.py` | All 6 safety-sensitive prompts: Base vs 1-Ep LoRA vs 3-Ep LoRA (rp=1.1) with prompt 0020 dangerous advice noted. |
 | **Table 9: Artifact Inventory** | Entire repository file structure | `scripts/make_tables.py` | Complete file path mapping for all configs, weights, generations, and judgments. |
 
 ---

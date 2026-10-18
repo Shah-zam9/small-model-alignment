@@ -1,14 +1,16 @@
-\begin{table}[t]
+\begin{table*}[t]
 \centering
 \small
-\caption{\textbf{Position-Swap Consistency Check and Overall Position Preference.} Re-judging 50 randomly sampled pairs with A/B positions inverted. Overall `A' choice rate measured across all 300 judged pairs in the primary evaluation files.}
+\caption{\textbf{Position Bias Diagnostics: Candidate Slot Breakdown and 50-Pair Swap Consistency.} Shows candidate win rates when positioned as Response A vs. Response B across all 300 evaluation pairs, alongside the 50-pair position-swap experiment comparing the original vs. swapped order.}
 \label{tab:position_bias}
-\begin{tabularx}{\columnwidth}{lccccc}
+\begin{tabularx}{\textwidth}{lcccccccc}
 \toprule
-\textbf{Evaluation Track} & \textbf{Exact Agr.} & \textbf{Tie Disagr.} & \textbf{Flips} & \textbf{A Count (N=300)} & \textbf{A-Rate (excl)} \\
+& \multicolumn{3}{c}{\textbf{Candidate Slot Breakdown (N=300)}} & \multicolumn{5}{c}{\textbf{50-Pair Position-Swap Consistency}} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-9}
+\textbf{Evaluation Track} & \textbf{Slot A Win\%} & \textbf{Slot B Win\%} & \textbf{Overall A\%} & \textbf{Orig 50 Win\%} & \textbf{Swap 50 Win\%} & \textbf{Exact Agr.} & \textbf{Tie Disagr.} & \textbf{Flips} \\
 \midrule
-AlpacaEval (DPO-UF vs SFT) & \textbf{72.0\%} (36/50) & 18.0\% (9/50) & \textbf{10.0\%} (5/50) & 127 / 300 (42.3\%) & 58.0\% \\
-HH-RLHF (DPO-HH vs SFT) & \textbf{66.0\%} (33/50) & 22.0\% (11/50) & \textbf{12.0\%} (6/50) & 111 / 300 (37.0\%) & 52.6\% \\
+AlpacaEval (DPO-UF vs SFT) & 68.14\% (77/113) & 52.83\% (56/106) & 42.3\% (127/300) & 55.88\% (19/34) & 45.45\% (15/33) & \textbf{72.0\%} (36/50) & 18.0\% (9/50) & \textbf{10.0\%} (5/50) \\
+HH-RLHF (DPO-HH vs SFT) & 57.28\% (59/103) & 51.85\% (56/108) & 37.0\% (111/300) & 47.22\% (17/36) & 51.43\% (18/35) & \textbf{66.0\%} (33/50) & 22.0\% (11/50) & \textbf{12.0\%} (6/50) \\
 \bottomrule
 \end{tabularx}
-\end{table}
+\end{table*}
