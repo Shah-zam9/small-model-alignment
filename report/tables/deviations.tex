@@ -1,22 +1,21 @@
 \begin{table*}[t]
 \centering
 \small
-\caption{\textbf{Parameter Choices and Deviations Log.} Grouped by category (\textit{Resource-driven} vs. \textit{Performance-driven}) per manual \S14.3, tracking guide specifications against submitted implementations.}
+\caption{\textbf{Parameter Choices and Deviations Log.} Grouped by category (\textit{Resource-driven} vs. \textit{Performance-driven}) per manual \S14.3, tracking guide specifications against submitted implementations. Software bug fixes are detailed separately in \S14.7.}
 \label{tab:deviations}
 \begin{tabularx}{\textwidth}{lp{3.4cm}p{4.2cm}X}
 \toprule
 \textbf{Category} & \textbf{Guide Specification} & \textbf{Submitted Value} & \textbf{Rationale \& Concrete Evidence} \\
 \midrule
-\textbf{[Resource]} & Judge model: Gemini 2.5 / 3.6 Flash & \texttt{google/gemini-3-flash-preview} via Kaggle API & Gemini 3.6 Flash was unavailable in Kaggle \texttt{LLMS\_AVAILABLE}; \texttt{gemini-3-flash-preview} was authenticated, active, and accessible. \\
+\textbf{[Resource]} & \texttt{google/gemini-3.6-flash} & \texttt{google/gemini-3-flash-preview} via Kaggle API & Gemini 3.6 Flash was unavailable in Kaggle \texttt{LLMS\_AVAILABLE}; \texttt{gemini-3-flash-preview} was authenticated, active, and accessible. \\
 \textbf{[Resource]} & LoRA multi-GPU Trainer allocation & \texttt{CUDA\_VISIBLE\_DEVICES=0} on Kaggle nodes for LoRA & TRL \texttt{DPOTrainer} does not support multi-GPU \texttt{nn.DataParallel} in a single Python process; restricting to GPU 0 resolved process crash while preserving effective batch size 8. \\
-\textbf{[Resource]} & Persona generation compute & Local NVIDIA GeForce RTX 4060 Laptop GPU, float16 & Kaggle GPU quota conservation after DPO runs; all three rp=1.1 persona models (Base, 1-ep, 3-ep) evaluated in identical local float16 environment. \\
+\textbf{[Resource]} & Persona generation compute & Local NVIDIA GeForce RTX 4060 Laptop GPU, float16 & The Kaggle persona generation failed because of the resolver bug, so all three rp=1.1 persona files were regenerated locally in one environment for consistency. \\
 \midrule
 \textbf{[Performance]} & SFT dataset length selection & 30k train / 1k val from UltraChat filtered to $\le 512$ with EOS & In raw UltraChat, 42.07\% of train examples exceed 512 tokens (which truncates EOS). Filtering eliminates EOS truncation completely (0.0\%). \\
 \textbf{[Performance]} & UltraFeedback length symmetry \& split & Keep pairs where both fit $\le 512$ (29,594 pool); carve disjoint 15k train / 1k val & Raw UF had 26.40\% chosen vs 18.61\% rejected truncation at 512 tokens and 7,286 score ties. Filtering eliminated tie conflicts and asymmetric EOS stripping. \\
 \textbf{[Performance]} & DPO prompt length truncation (256) & Filter prompts $> 256$ tokens instead of right-truncation & Right-truncating cuts off the prompt delimiter (\texttt{\textbackslash n\textbackslash n\#\#\# Response:\textbackslash n}), corrupting formatting. Filtering removed 203 pairs (HH) and 9,883 pairs (UF) cleanly. \\
-\textbf{[Performance]} & Decoding rule for loops ($>10\%$) & Repetition penalty $rp=1.1$ primary evaluation & Small models exhibited loop rates up to 30.33\% (Base Alpaca), 25.33\% (Base HH), and 45.83\% (LoRA 3-ep) under greedy ($rp=1.0$); $rp=1.1$ reduced loops to $<5\%$ without altering temperatures. \\
-\textbf{[Performance]} & 1-Epoch LoRA persona ablation & 1-epoch adapter (25 steps) ablated alongside 3-epoch (75 steps) & Directly isolates stylistic steering speed vs. overfitting: 1 epoch achieved 0 style wins, while 3 epochs achieved 100\% style win rate. \\
-\textbf{[Performance]} & Model resolver bug \& regeneration & Strict resolver raising on ambiguities; regenerated base outputs & Initial generator resolved base model to cached DPO checkpoint due to fallback path bug. Fixed resolver and regenerated all affected runs on Kaggle T4. \\
+\textbf{[Performance]} & Decoding rule for loops ($>10\%$) & Repetition penalty $rp=1.1$ primary evaluation & Under pure greedy ($rp=1.0$), small models hit max new tokens on 30.33\% (Base Alpaca), 25.33\% (Base HH), and 45.83\% (LoRA 3-ep); $rp=1.1$ reduced loops across models (Base Alpaca 16.0\%, SFT Alpaca 5.0\%, DPO-UF 4.0\%, Base HH 5.33\%, SFT HH 2.0\%, DPO-HH 1.0\%, Base Persona 0.0\%, 1-ep Persona 8.33\%, 3-ep Persona 0.0\%). \\
+\textbf{[Performance]} & 1-Epoch LoRA persona ablation & 1-epoch adapter (25 steps) ablated alongside 3-epoch (75 steps) & Directly isolates stylistic steering speed vs. overfitting: 3 epochs produced style the judge could detect (won all 7 decisive style comparisons vs base with 17 ties, and all 9 vs 1-epoch with 15 ties); 1 epoch did not. \\
 \bottomrule
 \end{tabularx}
 \end{table*}

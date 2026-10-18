@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Generate report/main.tex strictly from report/facts.json with verified numbers and exact sections."""
+"""Generate report/main.tex strictly from report/facts.json with verified numbers,
+
+streamlined sections, and exact audited prose.
+"""
 
 import json
 import sys
@@ -48,7 +51,7 @@ Department of Computer Science}
 \maketitle
 
 \begin{abstract}
-Post-training aligns raw, self-supervised base language models with human preferences, intent, and conversational norms. This technical report presents an empirical investigation into post-training small causal language models ($<1\text{B}$ parameters) across three sequential paradigms: (1) response-masked Supervised Fine-Tuning (SFT) on 30,000 single-turn demonstrations from UltraChat; (2) from-scratch Direct Preference Optimization (DPO) implemented directly in PyTorch on 15,000 preference pairs from Anthropic Helpful-and-Harmless (Track A) and UltraFeedback Binarized (Track B); and (3) parameter-efficient LoRA DPO persona steering on SmolLM2-360M using TRL and PEFT. Model generations are evaluated under locked deterministic decoding ($rp=1.1$, greedy) via blinded LLM-as-a-judge assessments (\texttt{google/gemini-3-flash-preview}). UltraFeedback DPO delivers a statistically significant win rate over SFT of \textbf{60.73\%} ($p = 0.0018$, 95\% CI: [53.9\%, 67.2\%]), with length-split analysis showing DPO-UF also leads when shorter than SFT (28--10). Anthropic HH DPO achieves \textbf{54.50\%} ($p = 0.2152$), within judge noise. In persona steering, a 1-epoch adapter fails to adopt the target voice (0 style wins, 24 ties), whereas 3 epochs achieves 100\% style win rate against both base and 1-epoch models, though underlying safety across extreme prompts remains unreliable across all variants.
+Post-training aligns raw, self-supervised base language models with human preferences, intent, and conversational norms. This technical report presents an empirical investigation into post-training small causal language models ($<1\text{B}$ parameters) across three sequential paradigms: (1) response-masked Supervised Fine-Tuning (SFT) on 30,000 single-turn demonstrations from UltraChat; (2) from-scratch Direct Preference Optimization (DPO) implemented directly in PyTorch on 15,000 preference pairs from Anthropic Helpful-and-Harmless (Track A) and UltraFeedback Binarized (Track B); and (3) parameter-efficient LoRA DPO persona steering on SmolLM2-360M using TRL and PEFT. Model generations are evaluated under locked deterministic decoding ($rp=1.1$, greedy) via blinded LLM-as-a-judge assessments (\texttt{google/gemini-3-flash-preview}). UltraFeedback DPO delivers a statistically significant win rate over SFT of \textbf{60.73\%} ($p = 0.0018$, 95\% CI: [53.9\%, 67.2\%]), with length-split analysis showing DPO-UF also leads when shorter than SFT (28--10). Anthropic HH DPO achieves \textbf{54.50\%} ($p = 0.2152$), within judge noise. In persona steering, a 1-epoch adapter fails to adopt the target voice (0 style wins, 24 ties), whereas 3 epochs won all 7 decisive style comparisons vs base (17 ties) and all 9 vs the 1-epoch adapter (15 ties), though underlying safety across extreme prompts remains unreliable across all variants.
 \end{abstract}
 
 % ====================================================================
@@ -98,25 +101,9 @@ All evaluation benchmarks use fixed subsets sampled with random seed 42 to enabl
 \section{Experimental Configuration}
 \label{sec:config}
 
-Table~\ref{tab:config} summarizes the complete hyperparameter specifications across all four fine-tuning pipelines. Qwen models were trained on dual NVIDIA Tesla T4 GPUs on Kaggle; SmolLM2 LoRA was trained on Kaggle GPU 0.
+Table~\ref{tab:config} summarizes the complete hyperparameter specifications across all four fine-tuning pipelines. SFT ran on one T4; DPO policy ran on GPU 0 and reference on GPU 1. All models were evaluated under locked greedy decoding with repetition penalty $rp=1.1$ (primary) and $rp=1.0$ (secondary).
 
 """ + tables["config"] + r"""
-
-\subsection{Trainable Parameter Strategies}
-For SFT and both DPO runs, we perform full-parameter fine-tuning of all 494.0M parameters of \texttt{Qwen2.5-0.5B}. In Task 5 (LoRA Persona Tuning), we freeze the base \texttt{SmolLM2-360M} weights and inject Low-Rank Adaptation (LoRA) matrices into all seven linear projections of the multi-head attention and MLP blocks (\texttt{q\_proj, k\_proj, v\_proj, o\_proj, gate\_proj, up\_proj, down\_proj}). With rank $r = 16$, scaling factor $\alpha = 32$, and dropout $p = 0.05$, exactly 8,683,520 parameters (2.34\% of the model's 370.5M parameters) are trained, drastically reducing memory overhead while allowing rapid stylistic steering.
-
-\subsection{Optimization and DPO Parameterization}
-For SFT, we utilize AdamW ($\beta_1 = 0.9, \beta_2 = 0.999$, weight decay 0.1) with gradient norm clipping at 1.0. The learning rate follows a cosine decay schedule with a 3\% linear warmup (28 steps) from a peak of $2.0 \times 10^{-5}$ across 938 steps (1 epoch, effective batch size 32 via micro-batch 2 and gradient accumulation 16).
-
-For DPO Tracks A and B, learning rates are locked at a constant $1.0 \times 10^{-6}$ with weight decay 0.0 over 1 epoch (469 steps, effective batch size 32 via micro-batch 1 and gradient accumulation 32) without warmup or decay. The reference model $\pi_{\text{ref}}$ is frozen at the optimal SFT checkpoint (\texttt{outputs/sft/best}, step 938). The temperature hyperparameter is set to $\beta = 0.1$, enforcing the Bradley-Terry implicit-reward objective:
-\begin{equation}
-\hat{r}(x, y) = \beta \log \frac{\pi_\theta(y \mid x)}{\pi_{\text{ref}}(y \mid x)}
-\end{equation}
-
-For Task 5 LoRA DPO, training runs with AdamW (weight decay 0.01) at learning rate $5.0 \times 10^{-5}$ using a cosine decay schedule with 10\% warmup, effective batch size 8 (micro-batch 2, gradient accumulation 4), across 75 steps (3 epochs) for the primary model and 25 steps (1 epoch) for the ablation.
-
-\subsection{Locked Evaluation Decoding Settings}
-To isolate model weights from decoding variability, all candidate and baseline models are evaluated under locked generation settings: greedy search ($\text{do\_sample} = \text{False}$), maximum new tokens 512, and repetition penalty $rp = 1.1$. Repetition penalty was introduced pursuant to Decoding Rule 2 (Section~\ref{sec:deviations}), suppressing degenerate token cycling observed in sub-billion parameter models under unconstrained greedy decoding ($rp = 1.0$).
 
 % ====================================================================
 % SECTION 14.3
@@ -124,27 +111,9 @@ To isolate model weights from decoding variability, all candidate and baseline m
 \section{Parameter Choices and Deviations}
 \label{sec:deviations}
 
-Table~\ref{tab:deviations} documents all parameter deviations from initial guide recommendations, categorized into \textit{Resource-driven} and \textit{Performance-driven} modifications per manual \S14.3.
+Table~\ref{tab:deviations} documents all parameter deviations from initial guide recommendations, categorized into \textit{Resource-driven} and \textit{Performance-driven} modifications per manual \S14.3. Software bug fixes are detailed separately under reproducibility in \S14.7.
 
 """ + tables["deviations"] + r"""
-
-\subsection{Resource-Driven Adjustments}
-\begin{enumerate}[leftmargin=*]
-    \item \textbf{Judge Model Availability:} Gemini 3.6 Flash was unavailable in Kaggle \texttt{LLMS\_AVAILABLE}. We authenticated and used \texttt{google/gemini-3-flash-preview}, which was active and fully supported.
-    \item \textbf{LoRA Trainer Process Isolation:} During Task 5 execution on Kaggle dual-T4 nodes, TRL's \texttt{DPOTrainer} raised an error under multi-GPU process allocation (\texttt{nn.DataParallel} unsupported in single-process TRL). Setting \texttt{CUDA\_VISIBLE\_DEVICES=0} isolated execution to a single T4 GPU, resolving the issue completely while maintaining effective batch size 8 (micro-batch 2, gradient accumulation 4).
-    \item \textbf{Persona rp=1.1 Generation Environment:} To conserve Kaggle GPU quota after completing the full DPO tracks, all three persona models under $rp=1.1$ (Base, 1-epoch LoRA, 3-epoch LoRA) were generated locally on an NVIDIA GeForce RTX 4060 Laptop GPU in native \texttt{float16}. All models were executed in the exact same software environment and numerical precision.
-    \item \textbf{Adam-Adjusted Memory Probe in DPO-UF:} Before launching DPO-UF, we analyzed GPU memory overhead. Because AdamW allocates two 32-bit optimizer momentum buffers ($\approx 2 \times 494\text{M} \times 4\text{ B} \approx 3.952\text{ GB}$) upon the first step, a forward-backward probe on the longest pair logged a raw peak of 6.286 GB on GPU 0. Adding 3.952 GB yielded an Adam-adjusted estimate of 10.238 GB ($< 13.5\text{ GB}$). This verified that gradient checkpointing could remain disabled, avoiding unnecessary compute overhead.
-\end{enumerate}
-
-\subsection{Performance-Driven Adjustments}
-\begin{enumerate}[leftmargin=*]
-    \item \textbf{SFT Length Filtering ($\le 512$ with EOS):} In raw UltraChat 200k, 42.07\% of training examples exceed 512 tokens, which truncates off the EOS token and impairs clean termination. Subsampling 30,000 train (from 120,398) and 1,000 val (from 13,424) that fit in $\le 512$ tokens reduced EOS truncation from 42.07\% to 0.0\%.
-    \item \textbf{UltraFeedback Tied Score Filtering and Disjoint Split:} Filtering 7,286 pairs with $\text{score}_{\text{chosen}} \le \text{score}_{\text{rejected}}$ and restricting to pairs where both completions fit within 512 tokens yielded a clean pool of 29,594 pairs. We carved disjoint splits of 15,000 train and 1,000 val from \texttt{train\_prefs} using seed 42, eliminating asymmetric EOS truncation (26.40\% chosen vs 18.61\% rejected in raw data).
-    \item \textbf{DPO Prompt Filtering over Truncation:} Standard right-truncation cuts off the closing prompt delimiter (\texttt{\#\#\# Response:}), causing the model to learn continuations of malformed prompts. Filtering prompts $>256$ tokens eliminated 203 ambiguous pairs in HH and 9,883 in UltraFeedback without syntax corruption.
-    \item \textbf{Decoding Rule 2 (Repetition Penalty $rp=1.1$):} Under pure greedy decoding ($rp=1.0$), small models hit max new tokens on 30.33\% (Base Alpaca), 25.33\% (Base HH), and 45.83\% (LoRA 3-ep) of prompts. Introducing $rp=1.1$ reduced loop rates to $<5\%$ without altering sampling temperature, ensuring non-degenerate judge comparisons.
-    \item \textbf{1-Epoch LoRA Persona Ablation:} We trained both 1-epoch (25 steps) and 3-epoch (75 steps) adapters to empirically isolate stylistic steering dynamics from overfitting.
-    \item \textbf{Model Resolver Bug and Base Regeneration:} Due to a generic path fallback bug in initial script execution, the generator resolved base model requests to a cached checkpoint. We updated the resolver with strict path validation and regenerated all affected runs on Kaggle T4, verifying zero cross-model duplicate outputs.
-\end{enumerate}
 
 % ====================================================================
 % SECTION 14.4
@@ -187,14 +156,15 @@ Figure~\ref{fig:training_plots} illustrates the empirical training curves across
 During SFT on \texttt{Qwen2.5-0.5B}, token cross-entropy validation loss was evaluated every 100 steps on 1,000 held-out demonstrations. Step 0 logged validation loss 1.3373, step 100 logged 1.3608, step 800 logged 1.3091, step 900 logged 1.3071, and step 938 logged the global minimum of \textbf{1.3071} (1.307075). Checkpoint \texttt{step-938} was selected as the optimal SFT baseline and frozen reference anchor for both downstream DPO tracks. Peak GPU memory was 12.449 GB across 4,783 seconds ($\approx 1.33$ hours).
 
 \subsection{From-Scratch DPO Convergence: Track A vs. Track B}
-Both DPO runs began near the theoretical Bradley-Terry symmetry point: validation loss $\ln(2) \approx 0.6931$, reward margin $\Delta r \approx 0.0$, and implicit reward accuracy near 50.0\% (step 0: loss 0.6932, accuracy 48.10\%, margin $-0.0002$ on HH; loss 0.6934, accuracy 47.90\%, margin $-0.0004$ on UF).
+Both DPO runs began near the theoretical Bradley-Terry symmetry point: validation loss $\ln(2) \approx 0.6931$, reward margin $\Delta r \approx 0.0$, and implicit reward accuracy near 50.0\% (step 0: loss 0.6932, accuracy 48.10\%, margin $-0.0002$ on HH; loss 0.6934, accuracy 47.90\%, margin $-0.0004$ on UF). Because policy weights reside on GPU 0 in FP32 with PyTorch AMP (\texttt{float16}) while frozen reference weights reside on GPU 1 in native \texttt{torch.float16}, tiny floating-point numerical precision discrepancies ($10^{-4}\text{--}10^{-3}$) arise in sequence log-probabilities at step 0. This yields small non-zero implicit rewards around 0 rather than bitwise zeros, producing step-0 validation reward accuracies near 48\% under strict inequality ($r_w > r_l$).
+
 \begin{itemize}[leftmargin=*]
     \item \textbf{Track A (HH-RLHF):} Validation loss declined steadily to \textbf{0.6380} at final step 469, where validation reward accuracy peaked at \textbf{61.60\%} and reward margin climbed to \textbf{+0.2368} (chosen reward $-0.4515$, rejected $-0.6883$). Step 469 was selected as the submitted checkpoint. Training elapsed 5,853 seconds ($\approx 1.63$ hours) with peak VRAM of 11.909 GB on GPU 0 and 2.395 GB on GPU 1.
     \item \textbf{Track B (UltraFeedback):} UltraFeedback demonstrated stronger optimization dynamics. Validation loss reached \textbf{0.5608} at step 400, achieving peak validation reward accuracy of \textbf{71.90\%} and a positive reward margin of \textbf{+0.5393} (chosen reward $-0.0870$, rejected $-0.6263$). Step 400 was selected as the best checkpoint (at final step 469, loss was 0.5509, reward accuracy was 71.70\%, and margin was +0.5885). Training elapsed 6,658 seconds ($\approx 1.85$ hours) with peak VRAM of 11.883 GB on GPU 0 and 2.395 GB on GPU 1.
 \end{itemize}
 
 \subsection{LoRA Persona Progression (1 Epoch vs. 3 Epochs)}
-In Task 5, 1 epoch of training (25 steps) logged eval loss 0.4840, reward accuracy 100.0\%, and reward margin $+0.4790$ (chosen reward 0.4260, rejected $-0.0530$). Extending training to 3 epochs (75 steps) drove eval loss down to \textbf{0.1242}, reward accuracy to \textbf{100.0\%}, and reward margin to \textbf{+2.1488} (chosen reward 1.0888, rejected $-1.0600$). As shown in Section~\ref{sec:results}, this additional training was the critical threshold required for the adapter to internalize the target persona.
+In Task 5, 1 epoch of training (25 steps) logged eval loss 0.4840, reward accuracy 100.0\%, and reward margin $+0.4790$ (chosen reward 0.4260, rejected $-0.0530$). Extending training to 3 epochs (75 steps) drove eval loss down to \textbf{0.1242}, reward accuracy to \textbf{100.0\%}, and reward margin to \textbf{+2.1488} (chosen reward 1.0888, rejected $-1.0600$). As shown in Section~\ref{sec:results}, 3 epochs produced style the judge could detect; 1 epoch did not.
 
 % ====================================================================
 % SECTION 14.5
@@ -230,7 +200,7 @@ All 17 style ties in the 3-epoch vs. Base comparison and all 24 style ties in th
     \item \texttt{persona-eval-42-0008}: \textit{``Neither response successfully adopted the Ramsay persona. Response A is much more useful, providing correct industry-standard advice...''}; and
     \item \texttt{persona-eval-42-0009}: \textit{``Neither response followed the persona. Response A provides a clear and accurate explanation of binary search, while Response B bizarrely claims it cannot explain algorithms...''}.
 \end{enumerate}
-Thus, the 1-epoch adapter failed to acquire the target persona (0 style wins, 24 ties), whereas 3 epochs of training achieved \textbf{7 wins, 0 losses, and 17 ties} (100\% win rate excl. ties) against Base, and \textbf{9 wins, 0 losses, and 15 ties} against the 1-epoch adapter.
+Thus, the 1-epoch adapter failed to acquire the target persona (0 style wins, 24 ties), whereas 3 epochs of training won all 7 decisive style comparisons vs base (17 ties) and all 9 vs the 1-epoch adapter (15 ties).
 
 % ====================================================================
 % SECTION 14.6
@@ -258,6 +228,9 @@ To evaluate position bias, we examine candidate win rates conditioned on whether
 On AlpacaEval, DPO-UF was assigned to slot A in 149 pairs and slot B in 151 pairs. It achieved a \textbf{68.14\%} win rate (77 W, 36 L, 36 T) in slot A, compared to \textbf{52.83\%} (56 W, 50 L, 45 T) in slot B. Similarly, for DPO-HH, win rate was \textbf{57.28\%} in slot A (59 W, 44 L, 46 T) versus \textbf{51.85\%} in slot B (56 W, 52 L, 43 T). In the 50-pair swap test, on AlpacaEval, DPO-UF recorded a \textbf{55.88\%} win rate (19 W, 15 L, 16 T) in the original order and \textbf{45.45\%} (15 W, 18 L, 17 T) in the swapped order, with \textbf{72.0\%} exact agreement and \textbf{10.0\%} direct flips. On HH-RLHF, DPO-HH recorded \textbf{47.22\%} (17 W, 19 L, 14 T) in the original order and \textbf{51.43\%} (18 W, 17 L, 15 T) in the swapped order, with \textbf{66.0\%} exact agreement and \textbf{12.0\%} direct flips.
 
 As these numbers demonstrate, slot assignment was balanced (149/151), so the overall win rate averages over the judge's slot preference; the edge is much larger in slot A (68.1\%) than in slot B (52.8\%, 56-50, not significant alone), so part of the per-pair signal is positional and the true effect size is uncertain.
+
+\subsection{Validation Dynamics and Track Differences}
+Validation reward accuracy ranks the tracks the same way as the judge: UltraFeedback achieved 71.90\% validation accuracy and a statistically significant 60.73\% judge win rate ($p = 0.0018$), while HH-RLHF achieved 61.60\% validation accuracy and a statistically non-significant 54.50\% judge win rate ($p = 0.2152$). On HH both chosen and rejected rewards fell during training ($-0.4515$ chosen vs $-0.6883$ rejected), showing that DPO widened the reward gap mainly by lowering rejected likelihood faster rather than increasing chosen likelihood. In terms of convergence velocity, UltraFeedback reached 70.60\% accuracy by step 100 then plateaued, while HH rose more slowly across all 469 steps.
 
 \subsection{Qualitative Analysis: DPO Improvements and Regressions}
 Below, we quote verbatim model outputs illustrating concrete behavioral shifts induced by DPO alignment.
@@ -347,12 +320,14 @@ Across extreme requests:
 \subsection{Separation of Measured Observations and Interpretations}
 \begin{itemize}[leftmargin=*]
     \item \textbf{Why did DPO-UF outperform DPO-HH?} \textit{Observation:} DPO-UF achieved a statistically significant 60.73\% win rate ($p = 0.0018$), whereas DPO-HH achieved 54.50\% ($p = 0.2152$). \textit{Interpretation:} UltraFeedback provides dense, multi-dimensional supervision across complex reasoning, instruction formatting, and factual correctness. In contrast, Anthropic HH pairs differ primarily in tone and refusal posturing. Small 0.5B models lack parameter capacity to separate subtle tone shifts from helpfulness, causing DPO-HH optimization to saturate.
-    \item \textbf{Why did 1-epoch persona fail while 3-epoch succeeded?} \textit{Observation:} 1-epoch LoRA produced 0 style wins and 24 ties against Base, while 3-epoch LoRA achieved 7 style wins and 0 losses. \textit{Interpretation:} 25 gradient steps (1 epoch) were insufficient to overcome the frozen base model's strong pretraining priors. At 75 steps (3 epochs), the adapter weights accumulated sufficient magnitude to reliably alter the output distribution without triggering mode collapse.
+    \item \textbf{Why did 1-epoch persona fail while 3-epoch succeeded?} \textit{Observation:} 1-epoch LoRA produced 0 style wins and 24 ties against Base, while 3-epoch LoRA won all 7 decisive style comparisons vs base (17 ties) and all 9 vs the 1-epoch adapter (15 ties). \textit{Interpretation:} 25 gradient steps (1 epoch) were insufficient to overcome the frozen base model's strong pretraining priors. At 75 steps (3 epochs), the adapter weights accumulated sufficient magnitude to reliably alter the output distribution without triggering mode collapse.
     \item \textbf{Did LoRA persona degrade safety?} \textit{Observation:} Base SmolLM2 complied with 6 of 6 safety prompts; 1-epoch LoRA refused 1 of 6; 3-epoch LoRA refused 2 of 6, gave a different dangerous instruction on 0020, and added insults across all 6. \textit{Interpretation:} No evidence of systematic erosion on 6 prompts; all three models are unreliable; the 3-epoch adapter adds insults and on 0020 gives a different dangerous instruction.
 \end{itemize}
 
-\subsection{Limitations}
+\subsection{Limitations and Resolver Bug Fix}
 Key limitations include: (1) single-seed evaluation ($seed = 42$), leaving seed variance unmeasured; (2) reliance on an external LLM-as-a-judge (\texttt{gemini-3-flash-preview}), which carries latent stylistic preferences; and (3) sub-billion parameter capacity limits, which restrict general reasoning capabilities and nuanced safety boundary detection.
+
+\noindent\textbf{Model Resolver Path Bug and Regeneration:} Due to an overly permissive fallback path searching \texttt{/kaggle/input} for cached \texttt{best/config.json}, the initial generation script resolved Hugging Face Hub IDs like \texttt{Qwen/Qwen2.5-0.5B} to a cached DPO checkpoint on Kaggle, generating duplicate outputs across files. We repaired the resolver to strictly raise errors on ambiguous directories and removed the generic fallback. All affected baseline generations were fully regenerated on Kaggle Tesla T4 GPUs with validated provenance, and overlap analysis verified zero cross-model duplicate completions.
 
 """ + tables["artifacts"] + r"""
 

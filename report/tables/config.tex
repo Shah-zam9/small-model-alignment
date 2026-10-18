@@ -1,7 +1,7 @@
 \begin{table*}[t]
 \centering
 \small
-\caption{\textbf{Experimental Configurations across Training Tracks.} All models trained from base checkpoint \texttt{Qwen/Qwen2.5-0.5B} (494.0M params) or \texttt{SmolLM2-360M-Instruct} (370.5M params) with random seed 42. Evaluation generations evaluated under locked decoding settings with repetition penalty $rp=1.1$ on Kaggle Tesla T4 (Qwen) and local RTX 4060 (SmolLM2).}
+\caption{\textbf{Experimental Configurations across Training Tracks.} All models trained from base checkpoint \texttt{Qwen/Qwen2.5-0.5B} (494.0M params) or \texttt{SmolLM2-360M-Instruct} (370.5M params) with random seed 42. Evaluation generations evaluated under locked decoding settings with repetition penalty $rp=1.1$ (primary) and $rp=1.0$ (secondary) on Kaggle Tesla T4 (Qwen) and local RTX 4060 (SmolLM2).}
 \label{tab:config}
 \begin{tabularx}{\textwidth}{lXXXX}
 \toprule
@@ -17,7 +17,7 @@
 \textbf{Optimizer \& Weight Decay} & AdamW, decay 0.1 & AdamW, decay 0.0 & AdamW, decay 0.0 & AdamW, decay 0.01 \\
 \textbf{Peak Learning Rate} & $2.0 \times 10^{-5}$ & $1.0 \times 10^{-6}$ & $1.0 \times 10^{-6}$ & $5.0 \times 10^{-5}$ \\
 \textbf{LR Scheduler \& Warmup} & Cosine, 3\% warmup (28 steps) & Constant (no decay/warmup) & Constant (no decay/warmup) & Cosine, 10\% warmup \\
-\textbf{Gradient Clipping} & 1.0 & 1.0 & 1.0 & N/A \\
+\textbf{Gradient Clipping} & 1.0 & 1.0 & 1.0 & 1.0 \\
 \textbf{Batch Size (per-dev / accum)} & 2 / 16 (effective 32) & 1 / 32 (effective 32) & 1 / 32 (effective 32) & 2 / 4 (effective 8) \\
 \textbf{Max Sequence Length} & 512 tokens & 512 tokens & 512 tokens & 512 tokens (prompt 256) \\
 \textbf{Optimization Steps / Epochs} & 938 steps (1 epoch) & 469 steps (1 epoch) & 469 steps (1 epoch) & 75 steps (3 ep) / 25 steps (1 ep) \\
@@ -25,7 +25,7 @@
 \midrule
 \textbf{Eval Decoding Method} & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) \\
 \textbf{Eval Max New Tokens} & 512 tokens & 512 tokens & 512 tokens & 512 tokens \\
-\textbf{Repetition Penalty ($rp$)} & 1.1 (primary) / 1.0 (greedy) & 1.1 (primary) / 1.0 (greedy) & 1.1 (primary) / 1.0 (greedy) & 1.1 (primary) / 1.0 (greedy) \\
+\textbf{Repetition Penalty ($rp$)} & 1.1 (primary) / 1.0 (secondary) & 1.1 (primary) / 1.0 (secondary) & 1.1 (primary) / 1.0 (secondary) & 1.1 (primary) / 1.0 (secondary) \\
 \textbf{Prompt / Chat Template} & Custom instruction delimiter & Custom instruction delimiter & Custom instruction delimiter & Native ChatML + system prompt \\
 \bottomrule
 \end{tabularx}

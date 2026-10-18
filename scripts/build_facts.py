@@ -47,7 +47,7 @@ def main():
             "weight_decay": 0.1,
             "max_grad_norm": 1.0,
             "precision": "fp16 (AMP autocast, fp32 master weights)",
-            "hardware": "Kaggle Tesla T4 x 2 (cuda:0, 15.0 GB VRAM)",
+            "hardware": "Kaggle Tesla T4 (single GPU, cuda:0, 15.0 GB VRAM)",
             "selected_checkpoint_step": 938,
             "total_optimizer_steps": 938,
             "gradient_checkpointing": False,
@@ -158,6 +158,7 @@ def main():
             "warmup_steps": 8,
             "optimizer": "AdamW (weight_decay=0.01)",
             "weight_decay": 0.01,
+            "max_grad_norm": 1.0,
             "beta": 0.1,
             "lora_r": 16,
             "lora_alpha": 32,
@@ -198,6 +199,7 @@ def main():
             "warmup_steps": 3,
             "optimizer": "AdamW (weight_decay=0.01)",
             "weight_decay": 0.01,
+            "max_grad_norm": 1.0,
             "beta": 0.1,
             "lora_r": 16,
             "lora_alpha": 32,
@@ -443,8 +445,29 @@ def main():
         ]
     }
 
-    # 5. Deviations
+    # 5. Deviations (Parameter Choices & Resource Deviations only; bug fixes moved to reproducibility section)
     facts["deviations"] = [
+        {
+            "setting": "Judge Model Selection",
+            "guide": "google/gemini-3.6-flash",
+            "used": "google/gemini-3-flash-preview via Kaggle API",
+            "tag": "[resource]",
+            "rationale": "Gemini 3.6 Flash was unavailable in Kaggle b auth LLMS_AVAILABLE; google/gemini-3-flash-preview was verified active and accessible."
+        },
+        {
+            "setting": "LoRA Single-GPU Confinement",
+            "guide": "TRL DPOTrainer on multi-GPU Kaggle",
+            "used": "CUDA_VISIBLE_DEVICES=0, per_device_batch_size=2, grad_accum=4 (effective batch size = 8)",
+            "tag": "[resource]",
+            "rationale": "TRL DPOTrainer does not support nn.DataParallel when multiple GPUs are visible to a single process. Confining to cuda:0 runs cleanly."
+        },
+        {
+            "setting": "Persona Generation Environment",
+            "guide": "Kaggle Tesla T4 generation",
+            "used": "Local NVIDIA GeForce RTX 4060 Laptop GPU, float16 for all three rp=1.1 persona runs",
+            "tag": "[resource]",
+            "rationale": "The Kaggle persona generation failed because of the resolver bug, so all three rp=1.1 persona files were regenerated locally in one environment for consistency."
+        },
         {
             "setting": "SFT <=512-Token Length Filter",
             "guide": "30,000 train / 1,000 val from UltraChat 200k",
@@ -471,42 +494,23 @@ def main():
             "guide": "Greedy decoding (repetition_penalty=1.0, max_new_tokens=512)",
             "used": "Pre-committed rule: if either model loops on >10% of prompts, evaluate BOTH at repetition_penalty=1.1",
             "tag": "[performance]",
-            "rationale": "Greedy rp=1.0 loop rates exceeded 10% (30.33% Base Alpaca, 25.33% Base HH, 45.83% 3-ep LoRA). Generating both at rp=1.1 avoids judging degenerate loops while keeping conditions symmetric."
-        },
-        {
-            "setting": "Judge Model Availability",
-            "guide": "Gemini 2.5 / 3.6 Flash",
-            "used": "google/gemini-3-flash-preview",
-            "tag": "[resource]",
-            "rationale": "gemini-3.6 was unavailable in Kaggle b auth LLMS_AVAILABLE; google/gemini-3-flash-preview was verified active and accessible."
-        },
-        {
-            "setting": "LoRA Single-GPU Confinement",
-            "guide": "TRL DPOTrainer on multi-GPU Kaggle",
-            "used": "CUDA_VISIBLE_DEVICES=0, per_device_batch_size=2, grad_accum=4 (effective batch size = 8)",
-            "tag": "[resource]",
-            "rationale": "TRL DPOTrainer does not support nn.DataParallel when multiple GPUs are visible to a single process. Confining to cuda:0 runs cleanly."
+            "rationale": "Under pure greedy (rp=1.0), small models hit max new tokens on 30.33% (Base Alpaca), 25.33% (Base HH), and 45.83% (LoRA 3-ep); rp=1.1 reduced loops across models (Base Alpaca 16.0%, SFT Alpaca 5.0%, DPO-UF 4.0%, Base HH 5.33%, SFT HH 2.0%, DPO-HH 1.0%, Base Persona 0.0%, 1-ep Persona 8.33%, 3-ep Persona 0.0%)."
         },
         {
             "setting": "1-Epoch LoRA Persona Ablation",
             "guide": "3-epoch LoRA Persona DPO",
             "used": "Ablated 1-epoch adapter (25 steps) alongside 3-epoch adapter (75 steps)",
             "tag": "[performance]",
-            "rationale": "Allows direct empirical isolation of stylistic steering speed vs. overfitting: 1 epoch achieved 0 style wins, while 3 epochs achieved 100% style win rate."
-        },
+            "rationale": "Allows direct empirical isolation of stylistic steering speed vs. overfitting: 3 epochs produced style the judge could detect (won all 7 decisive style comparisons vs base with 17 ties, and all 9 vs 1-epoch with 15 ties); 1 epoch did not."
+        }
+    ]
+
+    # 6. Bug Fixes (Documented in §14.7 Reproducibility)
+    facts["bug_fixes"] = [
         {
-            "setting": "Persona Generation Environment",
-            "guide": "Kaggle Tesla T4 generation",
-            "used": "Local NVIDIA GeForce RTX 4060 Laptop GPU, float16 for all three rp=1.1 persona runs",
-            "tag": "[resource]",
-            "rationale": "Kaggle quota conservation after DPO runs; unified all three models (Base, 1-ep, 3-ep) in identical local float16 hardware and software environment."
-        },
-        {
-            "setting": "Base-Model Provenance Resolver Bug & Regeneration",
-            "guide": "Resolve model weights from /kaggle/input",
-            "used": "Strict resolver raising error on ambiguous directories, deleted generic best/config.json fallback, regenerated base outputs",
-            "tag": "[performance]",
-            "rationale": "Initial generator resolved base model to cached DPO checkpoint due to fallback path bug. Fixed resolver and regenerated all affected runs on Kaggle T4."
+            "issue": "Model Resolver Fallback Path Bug",
+            "fix": "Strict resolver raising on ambiguous directories and removing generic best/config.json fallback",
+            "action": "Regenerated all affected baseline runs on Kaggle T4, verifying zero cross-model duplicate outputs."
         }
     ]
 
