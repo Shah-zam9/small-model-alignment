@@ -1,0 +1,23 @@
+{
+  "generator": "qwen2.5-0.5b-base-rp11",
+  "dataset": "hh_rlhf",
+  "output_path": "/kaggle/working/outputs/generations/hh_base_rp11.json",
+  "total_samples": 300,
+  "stopped_on_eos_count": 284,
+  "pct_stopped_on_eos": 94.67,
+  "hit_max_new_tokens_count": 16,
+  "pct_hit_max_new_tokens": 5.33,
+  "elapsed_sec": 296.66,
+  "generation_settings": {
+    "do_sample": false,
+    "max_new_tokens": 512,
+    "repetition_penalty": 1.1,
+    "no_repeat_ngram_size": 0,
+    "use_chat_template": false,
+    "lora_adapter_path": null,
+    "environment": "Tesla T4",
+    "device": "cuda:0",
+    "dtype": "float16",
+    "prompt_template": "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+  }
+}

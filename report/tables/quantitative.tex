@@ -1,0 +1,22 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Quantitative LLM-as-a-Judge Evaluation Results (Double-Blind via \texttt{google/gemini-3-flash-preview}).} Candidate vs. Baseline comparisons evaluated under repetition penalty $rp=1.1$. 95\% confidence intervals (exact Clopper-Pearson) and two-sided binomial $p$-values are computed over decisive pairs ($H_0: p = 0.5$). Win rate (ties half) treats ties as 0.5 win + 0.5 loss.}
+\label{tab:quantitative}
+\begin{tabularx}{\textwidth}{lXXccccccr}
+\toprule
+\textbf{Benchmark / Track} & \textbf{Candidate Model} & \textbf{Baseline Model} & \textbf{N} & \textbf{Wins} & \textbf{Losses} & \textbf{Ties} & \textbf{Win\% (excl)} & \textbf{95\% Exact CI} & \textbf{$p$-value} \\
+\midrule
+\multicolumn{10}{l}{\textit{\textbf{Tier (a) Primary DPO Evaluation}}} \\
+AlpacaEval 300 & \textbf{DPO-UF} & SFT & 300 & \textbf{133} & 86 & 81 & \textbf{60.73\%} & [53.9\%, 67.2\%] & $\mathbf{0.0018}^*$ \\
+HH-RLHF 300 & \textbf{DPO-HH} & SFT & 300 & \textbf{115} & 96 & 89 & \textbf{54.50\%} & [47.5\%, 61.4\%] & 0.2152 \\
+Persona 24 (Overall) & \textbf{3-Ep LoRA} & Base SmolLM2 & 24 & 10 & 11 & 3 & 47.62\% & [25.7\%, 70.2\%] & 1.0000 \\
+\midrule
+\multicolumn{10}{l}{\textit{\textbf{Tier (c) Secondary Comparisons}}} \\
+AlpacaEval 300 & \textbf{SFT} & Base Qwen2.5 & 300 & \textbf{133} & 119 & 48 & \textbf{52.78\%} & [46.4\%, 59.1\%] & 0.4129 \\
+HH-RLHF 300 & \textbf{SFT} & Base Qwen2.5 & 300 & \textbf{132} & 104 & 59 & \textbf{55.93\%} & [49.3\%, 62.4\%] & 0.0786 \\
+Persona 24 (Overall) & \textbf{1-Ep LoRA} & Base SmolLM2 & 24 & \textbf{10} & 7 & 7 & \textbf{58.82\%} & [32.9\%, 81.6\%] & 0.6291 \\
+Persona 24 (Overall) & \textbf{3-Ep LoRA} & 1-Ep LoRA & 24 & 9 & 9 & 6 & 50.00\% & [26.0\%, 74.0\%] & 1.0000 \\
+\bottomrule
+\end{tabularx}
+\end{table*}

@@ -1,0 +1,20 @@
+{
+  "generator": "smollm2-360m-instruct-ramsay-lora-dpo",
+  "dataset": "persona_style_eval",
+  "output_path": "/kaggle/working/outputs/lora_persona/persona_lora_eval.json",
+  "total_samples": 24,
+  "stopped_on_eos_count": 13,
+  "pct_stopped_on_eos": 54.17,
+  "hit_max_new_tokens_count": 11,
+  "pct_hit_max_new_tokens": 45.83,
+  "elapsed_sec": 77.35,
+  "generation_settings": {
+    "do_sample": false,
+    "max_new_tokens": 512,
+    "repetition_penalty": 1.0,
+    "no_repeat_ngram_size": 0,
+    "use_chat_template": true,
+    "lora_adapter_path": null,
+    "prompt_template": "<|im_start|>system\\nYou are a helpful AI assistant named SmolLM, trained by Hugging Face<|im_end|>\\n<|im_start|>user\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n"
+  }
+}

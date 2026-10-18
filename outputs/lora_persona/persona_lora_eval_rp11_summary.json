@@ -1,0 +1,23 @@
+{
+  "generator": "smollm2-360m-instruct-ramsay-lora-dpo-rp11",
+  "dataset": "persona_style_eval",
+  "output_path": "outputs\\lora_persona\\persona_lora_eval_rp11.json",
+  "total_samples": 24,
+  "stopped_on_eos_count": 24,
+  "pct_stopped_on_eos": 100.0,
+  "hit_max_new_tokens_count": 0,
+  "pct_hit_max_new_tokens": 0.0,
+  "elapsed_sec": 170.23,
+  "generation_settings": {
+    "do_sample": false,
+    "max_new_tokens": 512,
+    "repetition_penalty": 1.1,
+    "no_repeat_ngram_size": 0,
+    "use_chat_template": true,
+    "lora_adapter_path": "C:\\Users\\Shah\\Desktop\\genAI_assignments\\PA_2\\outputs\\lora_persona\\best_adapter",
+    "environment": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "device": "cuda:0",
+    "dtype": "float16",
+    "prompt_template": "<|im_start|>system\\nYou are a helpful AI assistant named SmolLM, trained by Hugging Face<|im_end|>\\n<|im_start|>user\\n{instruction}<|im_end|>\\n<|im_start|>assistant\\n"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "generator": "qwen2.5-0.5b-sft",
+  "dataset": "alpaca_eval",
+  "output_path": "/kaggle/working/outputs/generations/alpaca_sft.json",
+  "total_samples": 300,
+  "stopped_on_eos_count": 265,
+  "pct_stopped_on_eos": 88.33,
+  "hit_max_new_tokens_count": 35,
+  "pct_hit_max_new_tokens": 11.67,
+  "elapsed_sec": 336.64,
+  "generation_settings": {
+    "do_sample": false,
+    "max_new_tokens": 512,
+    "repetition_penalty": 1.0,
+    "no_repeat_ngram_size": 0,
+    "use_chat_template": false,
+    "lora_adapter_path": null,
+    "prompt_template": "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+  }
+}

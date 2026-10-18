@@ -1,0 +1,59 @@
+[
+  {
+    "id": "alpaca-eval-42-0000",
+    "instruction": "Create a short, concise summary of the paper based on its abstract.\n\nFew-shot learning (FSL) is one of the key future steps in machine learning and raises a lot of attention. In this paper, we focus on the FSL problem of dialogue understanding, which contains two closely related tasks: intent detection and slot filling. Dialogue understanding has been proven to benefit a lot from jointly learning the two sub-tasks. However, such joint learning becomes challenging in the few-shot scenarios: on the one hand, the sparsity of samples greatly magnifies the difficulty of modeling the connection between the two tasks; on the other hand, how to jointly learn multiple tasks in the few-shot setting is still less investigated. In response to this, we introduce FewJoint, the first FSL benchmark for joint dialogue understanding. FewJoint provides a new corpus with 59 different dialogue domains from real industrial API and a code platform to ease FSL experiment set-up, which are expected to advance the research of this field. Further, we find that insufficient performance of the few-shot setting often leads to noisy sharing between two sub-task and disturbs joint learning. To tackle this, we guide slot with explicit intent information and propose a novel trust gating mechanism that blocks low-confidence intent information to ensure high quality sharing. Besides, we introduce a Reptile-based meta-learning strategy to achieve better generalization in unseen few-shot domains. In the experiments, the proposed method brings significant improvements on two datasets and achieve new state-of-the-art performance.",
+    "output": "The paper presents a few-shot learning problem for dialogue understanding, focusing on intent detection and slot filling. The paper introduces a new corpus with 59 different dialogue domains from real industrial API, a code platform for FSL experiment set-up, and proposes a novel trust gating mechanism to improve joint learning in the few-shot setting. The paper also introduces a Reptile-based meta-learning strategy to achieve better generalization in unseen few-shot domains. The paper's main contribution is to advance the research of FSL and provide a new benchmark for joint dialogue understanding.",
+    "generator": "qwen2.5-0.5b-dpo-ultrafeedback",
+    "dataset": "alpaca_eval",
+    "stopped_on_eos": true,
+    "hit_max_new_tokens": false,
+    "num_generated_tokens": 112,
+    "generation_settings": {
+      "do_sample": false,
+      "max_new_tokens": 512,
+      "repetition_penalty": 1.0,
+      "no_repeat_ngram_size": 0,
+      "use_chat_template": false,
+      "lora_adapter_path": null,
+      "prompt_template": "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+    }
+  },
+  {
+    "id": "alpaca-eval-42-0001",
+    "instruction": "Is there a meaning for Christmas wreaths?",
+    "output": "Yes, there is a meaning for Christmas wreaths. They are often used to decorate homes and churches during the holiday season, and they are often associated with the idea of giving and receiving gifts. The wreath is a symbol of the abundance and generosity of Christmas, and it is often used to represent the hope and joy that comes with the holiday season. The wreath is also a way to honor the memory of loved ones who have passed away, and it is a way to remember the love and kindness that has been shown to those around us. Overall, Christmas wreaths are a meaningful way to celebrate the holiday season and to show our appreciation for the people who have made it possible.",
+    "generator": "qwen2.5-0.5b-dpo-ultrafeedback",
+    "dataset": "alpaca_eval",
+    "stopped_on_eos": true,
+    "hit_max_new_tokens": false,
+    "num_generated_tokens": 139,
+    "generation_settings": {
+      "do_sample": false,
+      "max_new_tokens": 512,
+      "repetition_penalty": 1.0,
+      "no_repeat_ngram_size": 0,
+      "use_chat_template": false,
+      "lora_adapter_path": null,
+      "prompt_template": "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+    }
+  },
+  {
+    "id": "alpaca-eval-42-0002",
+    "instruction": "What are some species of bears that are now extinct?",
+    "output": "1. Brown Bear (Ursus arctos)\n2. Black Bear (Ursus americanus)\n3. Polar Bear (Ursus maritimus)\n4. Mountain Lion (Felis concolor)\n5. Brown Bear (Ursus arctos)\n6. Black Bear (Ursus americanus)\n7. Polar Bear (Ursus maritimus)\n8. Mountain Lion (Felis concolor)\n9. Brown Bear (Ursus arctos)\n10. Black Bear (Ursus americanus)",
+    "generator": "qwen2.5-0.5b-dpo-ultrafeedback",
+    "dataset": "alpaca_eval",
+    "stopped_on_eos": true,
+    "hit_max_new_tokens": false,
+    "num_generated_tokens": 115,
+    "generation_settings": {
+      "do_sample": false,
+      "max_new_tokens": 512,
+      "repetition_penalty": 1.0,
+      "no_repeat_ngram_size": 0,
+      "use_chat_template": false,
+      "lora_adapter_path": null,
+      "prompt_template": "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+    }
+  }
+]

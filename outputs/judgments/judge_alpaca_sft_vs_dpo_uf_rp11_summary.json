@@ -1,0 +1,15 @@
+{
+  "candidate_model": "qwen2.5-0.5b-dpo-ultrafeedback-rp11",
+  "baseline_model": "qwen2.5-0.5b-sft-rp11",
+  "judge_model": "google/gemini-3-flash-preview",
+  "rubric": "general",
+  "n": 300,
+  "wins": 133,
+  "losses": 86,
+  "ties": 81,
+  "unknown": 0,
+  "win_rate_excluding_ties": 0.6073,
+  "win_rate_ties_as_half": 0.5783,
+  "failures": 0,
+  "retries": 0
+}

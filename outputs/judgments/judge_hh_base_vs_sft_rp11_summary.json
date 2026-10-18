@@ -1,0 +1,15 @@
+{
+  "candidate_model": "qwen2.5-0.5b-base-rp11",
+  "baseline_model": "qwen2.5-0.5b-sft-rp11",
+  "judge_model": "google/gemini-3-flash-preview",
+  "rubric": "safety",
+  "n": 300,
+  "wins": 104,
+  "losses": 132,
+  "ties": 59,
+  "unknown": 5,
+  "win_rate_excluding_ties": 0.4407,
+  "win_rate_ties_as_half": 0.4525,
+  "failures": 5,
+  "retries": 2
+}

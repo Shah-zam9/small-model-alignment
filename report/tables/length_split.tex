@@ -1,0 +1,17 @@
+\begin{table}[t]
+\centering
+\small
+\caption{\textbf{DPO-UF vs. SFT Win Rate Split by Relative Output Length (AlpacaEval 300).} Excludes 19 pairs where either model hit the 512-token limit to prevent truncation artifacts from confounding length analysis.}
+\label{tab:length_split}
+\begin{tabularx}{\columnwidth}{Xccccc}
+\toprule
+\textbf{Output Length Condition} & \textbf{N} & \textbf{UF Wins} & \textbf{SFT Wins} & \textbf{Ties} & \textbf{UF Win\% (excl)} \\
+\midrule
+DPO-UF longer than SFT & 229 & 100 & 73 & 56 & 57.80\% \\
+\textbf{DPO-UF shorter than SFT} & 46 & \textbf{28} & 10 & 8 & \textbf{73.68\%} \\
+Equal length ($\Delta \text{len} = 0$) & 6 & 0 & 0 & 6 & --- (\textit{all tied}) \\
+\midrule
+\textbf{Total Clean Pairs} & 281 & 128 & 83 & 70 & \textbf{60.66\%} \\
+\bottomrule
+\end{tabularx}
+\end{table}

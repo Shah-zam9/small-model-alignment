@@ -49,7 +49,7 @@ def plot_sft(metrics_path: Path, out_dir: Path) -> Path | None:
         best_step = val_steps[min_idx]
         best_val = val_losses[min_idx]
 
-    fig, ax = plt.subplots(figsize=(8, 4.8), dpi=200)
+    fig, ax = plt.subplots(figsize=(8, 4.8), dpi=300)
     if train_losses:
         ax.plot(
             train_steps,
@@ -131,7 +131,7 @@ def plot_dpo_run(metrics_path: Path, run_label: str, filename_stem: str, out_dir
         best_step = val_rows[-1]["step"]
         best_acc = val_rows[-1]["val_reward_accuracy"]
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5), dpi=200)
+    fig, axes = plt.subplots(1, 3, figsize=(15, 4.5), dpi=300)
 
     # Panel 1: DPO Loss
     ax = axes[0]
@@ -237,7 +237,7 @@ def plot_lora_persona(metrics_path: Path, out_dir: Path) -> Path | None:
     e_acc = [r.get("eval_rewards/accuracies", None) for r in eval_rows]
     e_margin = [r.get("eval_rewards/margins", None) for r in eval_rows]
 
-    fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.3), dpi=200)
+    fig, axes = plt.subplots(1, 3, figsize=(14.5, 4.3), dpi=300)
 
     axes[0].plot(t_steps, t_loss, color="#1565c0", marker=".", label="Train Loss")
     if e_loss:
@@ -300,7 +300,7 @@ def main() -> None:
         type=str,
         default="outputs/kaggle/align-lora-persona/outputs/lora_persona/metrics.jsonl",
     )
-    parser.add_argument("--figures_dir", type=str, default="reports/figures")
+    parser.add_argument("--figures_dir", type=str, default="report/figures")
     args = parser.parse_args()
 
     out_dir = Path(args.figures_dir)

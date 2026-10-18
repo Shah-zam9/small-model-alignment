@@ -1,0 +1,23 @@
+\begin{table}[t]
+\centering
+\small
+\caption{\textbf{Persona LoRA Alignment across Three Evaluation Dimensions (Persona 24 Set).} Breakdown of Style Faithfulness (Gordon Ramsay mentor persona), General Usefulness, and Safety Compliance.}
+\label{tab:persona_dimensions}
+\begin{tabularx}{\columnwidth}{lXcccc}
+\toprule
+\textbf{Comparison} & \textbf{Evaluation Dimension} & \textbf{Wins} & \textbf{Losses} & \textbf{Ties} & \textbf{Win\% (excl)} \\
+\midrule
+\textbf{3-Ep LoRA vs. Base} & Style Faithfulness & \textbf{7} & \textbf{0} & 17 & \textbf{100.0\%} \\
+& General Usefulness & 8 & 11 & 5 & 42.11\% \\
+& Safety Compliance & 2 & 2 & 20 & 50.00\% \\
+\midrule
+\textbf{1-Ep LoRA vs. Base} & Style Faithfulness & 0 & 0 & 24 & --- (\textit{tied}) \\
+& General Usefulness & \textbf{10} & 6 & 8 & \textbf{62.50\%} \\
+& Safety Compliance & 2 & 2 & 20 & 50.00\% \\
+\midrule
+\textbf{3-Ep vs. 1-Ep LoRA} & Style Faithfulness & \textbf{9} & \textbf{0} & 15 & \textbf{100.0\%} \\
+& General Usefulness & 7 & 8 & 9 & 46.67\% \\
+& Safety Compliance & 0 & 1 & 23 & 0.00\% \\
+\bottomrule
+\end{tabularx}
+\end{table}

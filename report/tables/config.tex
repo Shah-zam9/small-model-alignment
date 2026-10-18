@@ -1,0 +1,32 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Experimental Configurations across Training Tracks.} All models trained from base checkpoint \texttt{Qwen/Qwen2.5-0.5B} (490M params) or \texttt{SmolLM2-360M-Instruct} (360M params) with random seed 42. Evaluation generations evaluated under locked decoding settings with repetition penalty $rp=1.1$ on Kaggle Tesla T4.}
+\label{tab:config}
+\begin{tabularx}{\textwidth}{lXXXX}
+\toprule
+\textbf{Configuration Field} & \textbf{SFT (Task 3)} & \textbf{DPO Track A: HH-RLHF} & \textbf{DPO Track B: UltraFeedback} & \textbf{LoRA Persona (Task 5)} \\
+\midrule
+\textbf{Base Model Checkpoint} & \texttt{Qwen/Qwen2.5-0.5B} & \texttt{Qwen/Qwen2.5-0.5B} & \texttt{Qwen/Qwen2.5-0.5B} & \texttt{SmolLM2-360M-Instruct} \\
+\textbf{Reference Checkpoint} & N/A & SFT \texttt{best} (step 800) & SFT \texttt{best} (step 800) & Frozen SmolLM2 Base \\
+\textbf{Trainable Strategy} & Full fine-tuning & Full fine-tuning & Full fine-tuning & LoRA ($r=16, \alpha=32, p=0.05$) \\
+\textbf{Target Modules} & All weights & All weights & All weights & $q, k, v, o, \text{gate}, \text{up}, \text{down}$ \\
+\textbf{Trainable Parameters} & 494.0M (100\%) & 494.0M (100\%) & 494.0M (100\%) & 4.25M (1.18\%) \\
+\textbf{Dataset \& Split} & UltraChat 200k (30k/1k) & Anthropic HH (15k/1k) & UltraFeedback (15k/1k) & Ramsay pairs (200 train / 20 val) \\
+\textbf{Precision Format} & FP32 + AMP float16 & FP32 (policy) + FP16 (ref) & FP32 (policy) + FP16 (ref) & BFloat16 / Float16 \\
+\textbf{Optimizer \& Weight Decay} & AdamW, decay 0.01 & AdamW, decay 0.01 & AdamW, decay 0.01 & AdamW, decay 0.01 \\
+\textbf{Peak Learning Rate} & $2.0 \times 10^{-5}$ & $5.0 \times 10^{-7}$ & $5.0 \times 10^{-7}$ & $5.0 \times 10^{-5}$ \\
+\textbf{LR Scheduler \& Warmup} & Cosine, 10\% warmup & Cosine, 10\% warmup & Cosine, 10\% warmup & Cosine, 10\% warmup \\
+\textbf{Gradient Clipping} & 1.0 & 1.0 & 1.0 & 1.0 \\
+\textbf{Batch Size (per-dev / accum)} & 8 / 4 (effective 32) & 4 / 8 (effective 32) & 4 / 8 (effective 32) & 2 / 4 (effective 8) \\
+\textbf{Max Sequence Length} & 512 tokens & 512 tokens & 512 tokens & 512 tokens \\
+\textbf{Optimization Steps / Epochs} & 938 steps (1 epoch) & 938 steps (2 epochs) & 938 steps (2 epochs) & 75 steps (3 ep) / 25 steps (1 ep) \\
+\textbf{DPO $\beta$ Parameter} & N/A & $\beta = 0.1$ & $\beta = 0.1$ & $\beta = 0.1$ \\
+\midrule
+\textbf{Eval Decoding Method} & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) & Greedy ($do\_sample=\text{False}$) \\
+\textbf{Eval Max New Tokens} & 512 tokens & 512 tokens & 512 tokens & 512 tokens \\
+\textbf{Repetition Penalty ($rp$)} & 1.1 (primary) / 1.0 (greedy) & 1.1 (primary) / 1.0 (greedy) & 1.1 (primary) / 1.0 (greedy) & 1.1 (primary) / 1.0 (greedy) \\
+\textbf{Prompt / Chat Template} & Custom instruction delimiter & Custom instruction delimiter & Custom instruction delimiter & Native ChatML + system prompt \\
+\bottomrule
+\end{tabularx}
+\end{table*}

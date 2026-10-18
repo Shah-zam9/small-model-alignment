@@ -1,0 +1,14 @@
+\begin{table}[t]
+\centering
+\small
+\caption{\textbf{Position-Swap Consistency Check and Overall Position Preference.} Re-judging 50 randomly sampled pairs with A/B positions inverted. Overall `A' choice rate measured across all 300 judged pairs in the primary evaluation files.}
+\label{tab:position_bias}
+\begin{tabularx}{\columnwidth}{lccccc}
+\toprule
+\textbf{Evaluation Track} & \textbf{Exact Agr.} & \textbf{Tie Disagr.} & \textbf{Flips} & \textbf{A Count (N=300)} & \textbf{A-Rate (excl)} \\
+\midrule
+AlpacaEval (DPO-UF vs SFT) & \textbf{72.0\%} (36/50) & 18.0\% (9/50) & \textbf{10.0\%} (5/50) & 127 / 300 (42.3\%) & 58.0\% \\
+HH-RLHF (DPO-HH vs SFT) & \textbf{66.0\%} (33/50) & 22.0\% (11/50) & \textbf{12.0\%} (6/50) & 111 / 300 (37.0\%) & 52.6\% \\
+\bottomrule
+\end{tabularx}
+\end{table}

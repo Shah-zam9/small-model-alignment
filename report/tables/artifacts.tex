@@ -1,0 +1,31 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Repository Artifact Inventory and File Mapping.} Audit trail mapping every reported metric, training checkpoint, generation, and pairwise judgment to its exact filepath in the codebase.}
+\label{tab:artifacts}
+\begin{tabularx}{\textwidth}{llX}
+\toprule
+\textbf{Pipeline Component} & \textbf{Stage / Track} & \textbf{Exact Filepath in Repository} \\
+\midrule
+\textbf{Training Configurations} & SFT / DPO-HH / DPO-UF / LoRA & \texttt{configs/sft.yaml}, \texttt{configs/dpo\_hh.yaml}, \texttt{configs/dpo\_uf.yaml}, \texttt{configs/lora\_persona.yaml} \\
+\textbf{Training Metrics Logs} & SFT & \texttt{outputs/sft/metrics.jsonl} (also \texttt{outputs/kaggle/align-sft/outputs/sft/metrics.jsonl}) \\
+& DPO Track A (HH-RLHF) & \texttt{outputs/dpo\_hh/metrics.jsonl} (also \texttt{outputs/kaggle/align-dpo-hh/outputs/dpo\_hh/metrics.jsonl}) \\
+& DPO Track B (UltraFeedback) & \texttt{outputs/dpo\_uf/metrics.jsonl} (also \texttt{outputs/kaggle/align-dpo-uf/outputs/dpo\_uf/metrics.jsonl}) \\
+& LoRA Persona (1-ep \& 3-ep) & \texttt{outputs/lora\_persona/metrics.jsonl}, \texttt{outputs/lora\_persona\_1ep/metrics.jsonl} \\
+\textbf{Generation Outputs} & SFT (Alpaca \& HH, $rp=1.1$) & \texttt{outputs/generations/alpaca\_sft\_rp11.json}, \texttt{outputs/generations/hh\_sft\_rp11.json} \\
+& DPO-UF (Alpaca, $rp=1.1$) & \texttt{outputs/generations/alpaca\_dpo\_uf\_rp11.json} \\
+& DPO-HH (HH, $rp=1.1$) & \texttt{outputs/generations/hh\_dpo\_hh\_rp11.json} \\
+& Base Qwen2.5 (Alpaca \& HH, $rp=1.1$) & \texttt{outputs/generations/alpaca\_base\_rp11.json}, \texttt{outputs/generations/hh\_base\_rp11.json} \\
+& LoRA Persona (1-ep, 3-ep, Base) & \texttt{outputs/lora\_persona/persona\_lora\_eval\_rp11.json}, \texttt{\dots\_1ep\dots}, \texttt{\dots\_base\dots} \\
+\textbf{Pairwise Datasets} & Primary Targets & \texttt{outputs/pairwise/pairs\_alpaca\_sft\_vs\_dpo\_uf\_rp11.jsonl}, \texttt{pairs\_hh\_sft\_vs\_dpo\_hh\_rp11.jsonl} \\
+& Persona & \texttt{outputs/pairwise/pairs\_persona\_base\_vs\_lora\_3ep\_rp11.jsonl}, \texttt{\dots\_1ep\dots}, \texttt{\dots\_1ep\_vs\_3ep\dots} \\
+& Swapped Controls & \texttt{outputs/pairwise/swap50\_alpaca\_sft\_vs\_dpo\_uf\_rp11.jsonl}, \texttt{swap50\_hh\_sft\_vs\_dpo\_hh\_rp11.jsonl} \\
+\textbf{Judged Evaluations} & Primary DPO Judgments & \texttt{outputs/judgments/judge\_alpaca\_sft\_vs\_dpo\_uf\_rp11.jsonl}, \texttt{judge\_hh\_sft\_vs\_dpo\_hh\_rp11.jsonl} \\
+& Position Swapped Judgments & \texttt{outputs/judgments/judge\_swap50\_alpaca\_sft\_vs\_dpo\_uf\_rp11.jsonl}, \texttt{\dots\_hh\dots} \\
+& Persona Judgments & \texttt{outputs/judgments/judge\_persona\_base\_vs\_lora\_3ep\_rp11.jsonl}, \texttt{\dots\_1ep\dots}, \texttt{\dots\_1ep\_vs\_3ep\dots} \\
+& Secondary Baselines & \texttt{outputs/judgments/judge\_alpaca\_base\_vs\_sft\_rp11.jsonl}, \texttt{judge\_hh\_base\_vs\_sft\_rp11.jsonl} \\
+\textbf{Safety \& Plot Assets} & Safety Report & \texttt{reports/persona\_safety.md} \\
+& Training Figures (300 dpi) & \texttt{report/figures/sft\_loss.png}, \texttt{dpo\_hh\_training.png}, \texttt{dpo\_uf\_training.png}, \texttt{lora\_persona\_training.png} \\
+\bottomrule
+\end{tabularx}
+\end{table*}

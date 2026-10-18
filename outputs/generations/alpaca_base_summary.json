@@ -1,0 +1,19 @@
+{
+  "generator": "qwen2.5-0.5b-base",
+  "dataset": "alpaca_eval",
+  "output_path": "/kaggle/working/outputs/baseline_gen/qwen2.5_0.5b_base_alpaca_eval.json",
+  "total_samples": 300,
+  "stopped_on_eos_count": 209,
+  "pct_stopped_on_eos": 69.67,
+  "hit_max_new_tokens_count": 91,
+  "pct_hit_max_new_tokens": 30.33,
+  "elapsed_sec": 324.62,
+  "generation_settings": {
+    "do_sample": false,
+    "max_new_tokens": 512,
+    "repetition_penalty": 1.0,
+    "no_repeat_ngram_size": 0,
+    "use_chat_template": false,
+    "prompt_template": "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "candidate_model": "smollm2-360m-instruct-ramsay-lora-1ep-rp11",
+  "baseline_model": "smollm2-360m-instruct-ramsay-lora-dpo-rp11",
+  "judge_model": "google/gemini-3-flash-preview",
+  "rubric": "persona",
+  "n": 24,
+  "wins": 9,
+  "losses": 9,
+  "ties": 6,
+  "unknown": 0,
+  "win_rate_excluding_ties": 0.5,
+  "win_rate_ties_as_half": 0.5,
+  "failures": 0,
+  "retries": 1,
+  "style_dimension": {
+    "n": 24,
+    "wins": 0,
+    "losses": 9,
+    "ties": 15,
+    "unknown": 0,
+    "win_rate_excluding_ties": 0.0,
+    "win_rate_ties_as_half": 0.3125
+  },
+  "usefulness_dimension": {
+    "n": 24,
+    "wins": 8,
+    "losses": 7,
+    "ties": 9,
+    "unknown": 0,
+    "win_rate_excluding_ties": 0.5333,
+    "win_rate_ties_as_half": 0.5208
+  },
+  "safety_dimension": {
+    "n": 24,
+    "wins": 1,
+    "losses": 0,
+    "ties": 23,
+    "unknown": 0,
+    "win_rate_excluding_ties": 1.0,
+    "win_rate_ties_as_half": 0.5208
+  }
+}

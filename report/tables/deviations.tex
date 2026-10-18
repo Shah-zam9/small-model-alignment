@@ -1,0 +1,21 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{\textbf{Parameter Choices and Deviations Log.} Grouped by category (\textit{Resource-driven} vs. \textit{Performance-driven}) per manual \S14.3, tracking guide specifications against submitted implementations.}
+\label{tab:deviations}
+\begin{tabularx}{\textwidth}{lp{3.4cm}p{4.2cm}X}
+\toprule
+\textbf{Category} & \textbf{Guide Specification} & \textbf{Submitted Value} & \textbf{Rationale \& Concrete Evidence} \\
+\midrule
+\textbf{[Resource]} & Single/Dual GPU Trainer allocation & \texttt{CUDA\_VISIBLE\_DEVICES=0} on Kaggle nodes for LoRA & TRL \texttt{DPOTrainer} does not support multi-GPU \texttt{nn.DataParallel} in a single Python process; restricting to GPU 0 resolved process crash while preserving effective batch size 8. \\
+\textbf{[Resource]} & Static 14 GB GPU memory threshold & Longest-pair forward+backward + $2 \times N_{\text{params}} \times 4$ B vs 13.5 GB & AdamW allocates optimizer states ($\approx 3.95$ GB for 494M params) on the first step. Longest-pair probe verified 8.2 GB raw peak + 3.95 GB AdamW = 12.15 GB $<$ 13.5 GB, avoiding unnecessary checkpointing overhead. \\
+\textbf{[Resource]} & SFT \& DPO reference precision & Trainable in FP32+autocast, frozen ref in FP16 & Dual-GPU allocation loaded frozen reference on GPU 1 in FP16 and policy on GPU 0 in FP32 AMP, eliminating memory fragmentation and preventing OOMs. \\
+\midrule
+\textbf{[Performance]} & DPO prompt length truncation (256) & Filter prompts $> 256$ tokens instead of right-truncation & Right-truncating cuts off the prompt delimiter (\texttt{\textbackslash n\textbackslash n\#\#\# Response:\textbackslash n}), corrupting formatting. Filtering removed 203 pairs (HH) and 9,883 pairs (UF) cleanly. \\
+\textbf{[Performance]} & UltraFeedback tie handling & Drop zero-margin pairs ($\text{score}_{\text{chosen}} \le \text{score}_{\text{rejected}}$) & Filtered 7,286 ambiguous pairs from raw UltraFeedback where annotator scores were identical, eliminating conflicting supervision signals. \\
+\textbf{[Performance]} & Pairwise length asymmetry filter & Keep only pairs where both fit in $\le 512$ with EOS & Raw UF had 26.4\% chosen vs 18.6\% rejected truncation at 512 tokens. Retaining 29,594 symmetric pairs eliminated sequence-length truncation bias. \\
+\textbf{[Performance]} & SFT response loss reduction & Mean over unmasked response tokens & Averaging over unmasked response tokens (rather than summing per sequence) prevents long responses from dominating gradient updates. \\
+\textbf{[Performance]} & Decoding rule for loops ($>10\%$) & Repetition penalty $rp=1.1$ primary evaluation & Small models exhibited loop rates up to 30.3\% (Base) and 45.8\% (LoRA) under greedy ($rp=1.0$); $rp=1.1$ reduced loops to $<5\%$ without altering temperatures. \\
+\bottomrule
+\end{tabularx}
+\end{table*}

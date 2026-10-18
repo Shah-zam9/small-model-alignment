@@ -1,0 +1,20 @@
+{
+  "generator": "qwen2.5-0.5b-sft",
+  "dataset": "hh_rlhf",
+  "output_path": "/kaggle/working/outputs/generations/hh_sft.json",
+  "total_samples": 300,
+  "stopped_on_eos_count": 263,
+  "pct_stopped_on_eos": 87.67,
+  "hit_max_new_tokens_count": 37,
+  "pct_hit_max_new_tokens": 12.33,
+  "elapsed_sec": 310.62,
+  "generation_settings": {
+    "do_sample": false,
+    "max_new_tokens": 512,
+    "repetition_penalty": 1.0,
+    "no_repeat_ngram_size": 0,
+    "use_chat_template": false,
+    "lora_adapter_path": null,
+    "prompt_template": "### Instruction:\\n{instruction}\\n\\n### Response:\\n"
+  }
+}

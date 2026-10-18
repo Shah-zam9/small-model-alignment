@@ -9,6 +9,11 @@ import sys
 import time
 from typing import Any
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # Ensure repo root is on sys.path when invoked as `python scripts/judge_pairwise_kaggle.py`
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -39,7 +44,7 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
 def run_pairwise_judging(
     pairs_path: str | Path,
     output_path: str | Path,
-    judge_model: str = "google/gemini-3.6-flash",
+    judge_model: str = "google/gemini-3-flash-preview",
     batch_size: int = 5,
     sleep_seconds: float = 5.0,
     max_retries: int = 3,
@@ -195,7 +200,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Judge pairwise A/B responses using Kaggle Benchmarks.")
     parser.add_argument("--pairs_path", type=str, required=True, help="Input pairwise JSONL path.")
     parser.add_argument("--output_path", type=str, required=True, help="Output judged JSONL path.")
-    parser.add_argument("--judge_model", type=str, default="google/gemini-3.6-flash", help="Judge model slug.")
+    parser.add_argument("--judge_model", type=str, default="google/gemini-3-flash-preview", help="Judge model slug.")
     parser.add_argument("--batch_size", type=int, default=5, help="Pairs per judge request.")
     parser.add_argument("--sleep_seconds", type=float, default=5.0, help="Sleep seconds between requests.")
     parser.add_argument("--max_retries", type=int, default=3, help="Max retries per batch.")
