@@ -77,7 +77,7 @@ Post-training aligns raw, self-supervised base language models with human prefer
 
 All source code, training configurations, Kaggle driver notebooks, evaluation datasets, generation logs, and raw pairwise judgment transcripts are version-controlled in the public GitHub repository:
 \begin{center}
-\url{https://github.com/ahmad903501/small-model-alignment-starter.git}
+\url{https://github.com/Shah-zam9/small-model-alignment.git}
 \end{center}
 
 \subsection{Base Checkpoints}
